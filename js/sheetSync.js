@@ -29,64 +29,119 @@ const SheetSync = {
     }
   },
 
+  // Official, Hardcoded & Secure Payment Details for Avinash Sir
+  PAYMENT_CONFIG: {
+    fee: 200,
+    name: 'Avinash Bamboria',
+    upiId: 'avinashjain314-3@okhdfcbank',
+    bankName: 'SBM Bank India Ltd',
+    accountNumber: '20012521633258',
+    ifscCode: 'STCB0000065',
+    qrImage: 'assets/avinash_sir_qr.jpg'
+  },
+
+  // Whitelist of Avinash Sir's Coaching Students (Always 100% Free Lifetime Access)
+  COACHING_STUDENTS: [
+    '9876543210', // Demo Student (Sara)
+    '9876543211', // Demo Student (Aarav)
+    '9999999999'  // Avinash Sir (Admin)
+    // Avinash Sir can add his 8-10 coaching student numbers here anytime
+  ],
+
+  isCoachingStudent(phone) {
+    const clean = String(phone || '').trim().replace(/\D/g, '');
+    return this.COACHING_STUDENTS.includes(clean);
+  },
+
+  getPaymentConfig() {
+    return this.PAYMENT_CONFIG;
+  },
+
   // 1. VERIFY STUDENT BY MOBILE NUMBER
   async verifyStudent(phone) {
     const cleanPhone = String(phone).trim().replace(/\D/g, '');
     const scriptUrl = this.getScriptUrl();
 
-    // Check online Google Sheet first if script URL is configured
+    // 1. Check online Google Sheet with cache-busting timestamp
     if (scriptUrl && navigator.onLine) {
       try {
-        const response = await fetch(`${scriptUrl}?action=verify&phone=${encodeURIComponent(cleanPhone)}`, {
+        const cacheBuster = Date.now();
+        const response = await fetch(`${scriptUrl}?action=verify&phone=${encodeURIComponent(cleanPhone)}&_nocache=${cacheBuster}`, {
           method: 'GET',
-          mode: 'cors'
+          mode: 'cors',
+          cache: 'no-store'
         });
         if (response.ok) {
           const resData = await response.json();
-          if (resData.found) {
+          if (resData.found && resData.student) {
+            // Coaching student whitelist override
+            if (this.isCoachingStudent(cleanPhone)) {
+              resData.student.accessStatus = 'ACTIVE';
+            }
             this.saveLocalUser(resData.student);
-            return { success: true, student: resData.student, isNew: false };
+            return { success: true, student: resData.student, isNew: false, fromOnline: true };
+          } else {
+            // Student is definitely NOT in Google Sheet
+            if (this.isCoachingStudent(cleanPhone)) {
+              const coachingDemo = {
+                phone: cleanPhone,
+                name: cleanPhone === '9999999999' ? 'Avinash Sir (Admin)' : 'Coaching Student',
+                level: 'Junior (Grade 1-4)',
+                accessStatus: 'ACTIVE',
+                adminUnlockOverride: 'None',
+                totalScore: 0,
+                currentStreak: 0,
+                quizzesCompleted: 0,
+                attemptedDays: {},
+                lastActiveDate: new Date().toISOString()
+              };
+              this.saveLocalUser(coachingDemo);
+              return { success: true, student: coachingDemo, isNew: false, fromOnline: true };
+            }
+            return { success: true, student: null, isNew: true, fromOnline: true };
           }
         }
       } catch (err) {
-        console.warn('Google Sheet verify failed, checking local backup:', err);
+        console.warn('Google Sheet verify failed, using offline fallback:', err);
       }
     }
 
-    // Local / Offline fallback
+    // 2. Offline / Local fallback (ONLY when disconnected)
     const localUsers = this.getLocalUsers();
     if (localUsers[cleanPhone]) {
-      return { success: true, student: localUsers[cleanPhone], isNew: false };
+      if (this.isCoachingStudent(cleanPhone)) {
+        localUsers[cleanPhone].accessStatus = 'ACTIVE';
+      }
+      return { success: true, student: localUsers[cleanPhone], isNew: false, fromOnline: false };
     }
 
-    // Demo numbers for testing
-    if (cleanPhone === '9876543210' || cleanPhone === '9999999999') {
+    // 3. Demo coaching students fallback
+    if (this.isCoachingStudent(cleanPhone)) {
       const demoStudent = {
         phone: cleanPhone,
-        name: cleanPhone === '9876543210' ? 'Sara (Coaching)' : 'Avinash Sir (Admin)',
-        level: cleanPhone === '9876543210' ? 'Junior (Grade 1-4)' : 'Senior (Grade 4-10)',
+        name: cleanPhone === '9999999999' ? 'Avinash Sir (Admin)' : 'Coaching Student',
+        level: 'Junior (Grade 1-4)',
         accessStatus: 'ACTIVE',
-        adminUnlockOverride: cleanPhone === '9876543210' ? 'None' : 'All Past Days',
+        adminUnlockOverride: cleanPhone === '9999999999' ? 'All Past Days' : 'None',
         totalScore: 0,
         currentStreak: 0,
         quizzesCompleted: 0,
         attemptedDays: {},
         lastActiveDate: new Date().toISOString()
       };
-      // Keep any previously recorded local data for this demo phone if it exists
-      if (localUsers[cleanPhone]) {
-        return { success: true, student: localUsers[cleanPhone], isNew: false };
-      }
       this.saveLocalUser(demoStudent);
-      return { success: true, student: demoStudent, isNew: false };
+      return { success: true, student: demoStudent, isNew: false, fromOnline: false };
     }
 
-    return { success: true, student: null, isNew: true };
+    return { success: true, student: null, isNew: true, fromOnline: false };
   },
 
   // 2. REGISTER NEW STUDENT
   async registerStudent(studentData) {
     const cleanPhone = String(studentData.phone).trim().replace(/\D/g, '');
+    const isDemo = (cleanPhone === '9876543210' || cleanPhone === '9876543211' || cleanPhone === '9999999999');
+    const initialStatus = isDemo ? 'ACTIVE' : 'NO_ACCESS';
+
     const payload = {
       action: 'register',
       phone: cleanPhone,
@@ -100,7 +155,7 @@ const SheetSync = {
       phone: cleanPhone,
       name: payload.name,
       level: payload.level,
-      accessStatus: 'ACTIVE', // Free access for Avinash Sir's coaching students!
+      accessStatus: initialStatus,
       adminUnlockOverride: 'None',
       totalScore: 0,
       currentStreak: 0,
@@ -111,19 +166,22 @@ const SheetSync = {
     };
     this.saveLocalUser(localStudent);
 
-    // Sync with Google Sheet if configured
+    // Sync with Google Sheet if configured (both POST and GET fallback)
     const scriptUrl = this.getScriptUrl();
     if (scriptUrl && navigator.onLine) {
       try {
-        await fetch(scriptUrl, {
+        fetch(scriptUrl, {
           method: 'POST',
-          mode: 'no-cors', // Standard Google Apps Script POST workaround
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        console.warn('Could not post registration to Sheet, queued locally', err);
-      }
+        }).catch(() => {});
+      } catch (err) {}
+
+      try {
+        const qs = new URLSearchParams(payload).toString();
+        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
+      } catch (e) {}
     }
 
     return { success: true, student: localStudent };
@@ -151,6 +209,14 @@ const SheetSync = {
       users[cleanPhone].quizzesCompleted = (users[cleanPhone].quizzesCompleted || 0) + 1;
       users[cleanPhone].lastActiveDate = new Date().toISOString();
       this.saveLocalUser(users[cleanPhone]);
+
+      // Keep Auth.currentUser in memory strictly in sync
+      if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.phone === cleanPhone) {
+        Auth.currentUser.totalScore = users[cleanPhone].totalScore;
+        Auth.currentUser.currentStreak = users[cleanPhone].currentStreak;
+        Auth.currentUser.quizzesCompleted = users[cleanPhone].quizzesCompleted;
+        Auth.currentUser.attemptedDays = users[cleanPhone].attemptedDays;
+      }
     }
 
     // Attempt online sync to Google Sheet
@@ -173,14 +239,61 @@ const SheetSync = {
         await fetch(scriptUrl, {
           method: 'POST',
           mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
       } catch (err) {
-        this.queueOfflineSubmission(payload);
+        try {
+          const qs = new URLSearchParams(payload).toString();
+          await fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' });
+        } catch (getErr) {
+          this.queueOfflineSubmission(payload);
+        }
       }
     } else {
       this.queueOfflineSubmission(payload);
+    }
+
+    return { success: true };
+  },
+
+  // 5. SUBMIT PAYMENT (UTR / TRANSACTION ID)
+  async submitPayment(paymentData) {
+    const cleanPhone = String(paymentData.phone).trim().replace(/\D/g, '');
+    const payload = {
+      action: 'payment_submitted',
+      phone: cleanPhone,
+      studentName: paymentData.studentName || 'Student',
+      level: paymentData.level || 'Junior (Grade 1-4)',
+      utr: String(paymentData.utr || '').trim(),
+      amount: '200'
+    };
+
+    const users = this.getLocalUsers();
+    if (users[cleanPhone]) {
+      users[cleanPhone].accessStatus = 'PENDING_APPROVAL';
+      users[cleanPhone].lastUtr = payload.utr;
+      this.saveLocalUser(users[cleanPhone]);
+      if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.phone === cleanPhone) {
+        Auth.currentUser.accessStatus = 'PENDING_APPROVAL';
+      }
+    }
+
+    const scriptUrl = this.getScriptUrl();
+    if (scriptUrl && navigator.onLine) {
+      try {
+        fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      } catch (e) {}
+
+      try {
+        const qs = new URLSearchParams(payload).toString();
+        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
+      } catch (e) {}
     }
 
     return { success: true };
@@ -195,6 +308,24 @@ const SheetSync = {
         if (res.ok) {
           const data = await res.json();
           if (data && data.leaderboard) {
+            const currentUser = this.getCurrentUser();
+            if (currentUser && currentUser.name) {
+              const myEntry = data.leaderboard.find(s => s.name && s.name.toLowerCase() === currentUser.name.toLowerCase());
+              if (myEntry) {
+                myEntry.score = Math.max(Number(myEntry.score) || 0, Number(currentUser.totalScore) || 0);
+                myEntry.streak = Math.max(Number(myEntry.streak) || 0, Number(currentUser.currentStreak) || 0);
+                myEntry.quizzes = Math.max(Number(myEntry.quizzes) || 0, Number(currentUser.quizzesCompleted) || 0);
+              } else if (Number(currentUser.totalScore) > 0) {
+                data.leaderboard.push({
+                  name: currentUser.name,
+                  level: currentUser.level,
+                  score: currentUser.totalScore,
+                  streak: currentUser.currentStreak,
+                  quizzes: currentUser.quizzesCompleted
+                });
+              }
+              data.leaderboard.sort((a, b) => b.score - a.score || b.streak - a.streak);
+            }
             return data.leaderboard;
           }
         }

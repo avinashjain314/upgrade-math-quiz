@@ -61,18 +61,33 @@ const Auth = {
 
     const res = await SheetSync.verifyStudent(clean);
     if (res.student) {
-      if (res.student.accessStatus === 'BLOCKED') {
+      const status = String(res.student.accessStatus || '').toUpperCase().trim();
+      
+      if (status === 'BLOCKED') {
         return {
           success: false,
           blocked: true,
           message: 'Your account access is currently paused. Please contact Avinash Sir to resume.'
         };
       }
-      if (res.student.accessStatus === 'PENDING') {
+      if (status === 'NO_ACCESS' || status === 'NO ACCESS' || status === 'PENDING') {
+        this.currentUser = res.student;
+        SheetSync.saveLocalUser(res.student);
         return {
-          success: false,
-          pending: true,
-          message: 'Your enrollment is pending confirmation. Once approved by Avinash Sir, your quiz access will be activated!'
+          success: true,
+          paymentRequired: true,
+          student: res.student,
+          message: 'Account registered! Please pay ₹200 for full 100-day quiz access.'
+        };
+      }
+      if (status === 'PENDING_APPROVAL') {
+        this.currentUser = res.student;
+        SheetSync.saveLocalUser(res.student);
+        return {
+          success: true,
+          pendingApproval: true,
+          student: res.student,
+          message: 'Payment submitted! Avinash Sir is verifying your payment. Click "Check Status" anytime.'
         };
       }
 
@@ -97,7 +112,8 @@ const Auth = {
 
     if (res.success) {
       this.currentUser = res.student;
-      return { success: true, student: res.student };
+      const requiresPayment = (res.student.accessStatus !== 'ACTIVE');
+      return { success: true, student: res.student, paymentRequired: requiresPayment };
     }
 
     return { success: false, message: 'Registration failed. Please try again.' };

@@ -21,7 +21,7 @@ const App = {
     answers: [],
     score: 0,
     timerEnabled: true,
-    timerSeconds: 30,
+    timerSeconds: 50,
     timerInterval: null,
     autoAdvanceInterval: null,
     totalTimeSpent: 0,
@@ -30,6 +30,8 @@ const App = {
 
   init() {
     SoundEngine.init();
+    SoundEngine.updateSoundUi();
+    SoundEngine.updateBgmUi();
     RoughPad.init('roughpad-canvas');
 
     const user = Auth.init();
@@ -414,7 +416,7 @@ const App = {
       answers: [],
       score: 0,
       timerEnabled: timerEnabled,
-      timerSeconds: 30,
+      timerSeconds: 50,
       timerInterval: null,
       autoAdvanceInterval: null,
       totalTimeSpent: 0,
@@ -429,11 +431,15 @@ const App = {
       document.getElementById('quiz-timer-container').classList.add('opacity-40');
       document.getElementById('quiz-timer-text').innerText = 'Timer: OFF';
     }
+
+    if (SoundEngine.bgmEnabled) {
+      SoundEngine.startBgm();
+    }
   },
 
   startQuestionTimer() {
     clearInterval(this.quizState.timerInterval);
-    this.quizState.timerSeconds = 30;
+    this.quizState.timerSeconds = 50;
     const timerText = document.getElementById('quiz-timer-text');
     const timerBar = document.getElementById('quiz-timer-bar');
 
@@ -446,7 +452,7 @@ const App = {
 
       if (timerText) timerText.innerText = `${this.quizState.timerSeconds}s`;
       if (timerBar) {
-        const pct = (this.quizState.timerSeconds / 30) * 100;
+        const pct = (this.quizState.timerSeconds / 50) * 100;
         timerBar.style.width = `${pct}%`;
         if (pct < 25) {
           timerBar.className = 'h-full bg-red-500 transition-all duration-1000';
@@ -525,9 +531,9 @@ const App = {
     if (isCorrect) {
       pointsAwarded = q.points;
       if (this.quizState.timerEnabled) {
-        if (this.quizState.timerSeconds >= 20) pointsAwarded += 5;
-        else if (this.quizState.timerSeconds >= 10) pointsAwarded += 3;
-        else pointsAwarded += 1;
+        if (this.quizState.timerSeconds >= 35) pointsAwarded += 5; // Fast (first 15s)
+        else if (this.quizState.timerSeconds >= 20) pointsAwarded += 3; // Good (first 30s)
+        else pointsAwarded += 1; // Steady finish
       }
       this.quizState.score += pointsAwarded;
       SoundEngine.playCorrect();
@@ -643,6 +649,9 @@ const App = {
       questionsCorrect: correctCount,
       timerMode: this.quizState.timerEnabled
     });
+
+    // Immediately update header profile pill with new score
+    this.renderHeaderUser();
 
     document.getElementById('result-score-text').innerText = `${this.quizState.score} Points`;
     document.getElementById('result-accuracy-text').innerText = `${correctCount}/20 Correct (${accuracy}%)`;
@@ -834,6 +843,248 @@ const App = {
   },
 
   // -------------------------------------------------------------
+  // PAYMENT & MONETIZATION CONTROLLER
+  // -------------------------------------------------------------
+  currentPaymentStudent: null,
+  approvalPollInterval: null,
+
+  openPaymentModal(student, isPending = false) {
+    this.currentPaymentStudent = student || Auth.getCurrentUser();
+    if (!this.currentPaymentStudent) return;
+
+    const cfg = SheetSync.getPaymentConfig();
+    const cleanPhone = String(this.currentPaymentStudent.phone || '').trim().replace(/\D/g, '');
+
+    // Populate Student Info
+    const nameEl = document.getElementById('payment-student-name');
+    if (nameEl) nameEl.innerText = this.currentPaymentStudent.name || 'Student';
+    const phoneEl = document.getElementById('payment-student-phone');
+    if (phoneEl) phoneEl.innerText = cleanPhone;
+
+    // Pricing & Bank Info
+    const feeEl = document.getElementById('payment-amount-display');
+    if (feeEl) feeEl.innerText = cfg.fee || 200;
+    const upiDisplayEl = document.getElementById('payment-upi-display');
+    if (upiDisplayEl) upiDisplayEl.innerText = cfg.upiId;
+    const bankNameEl = document.getElementById('payment-bank-name');
+    if (bankNameEl) bankNameEl.innerText = cfg.name;
+    const bankBankEl = document.getElementById('payment-bank-bank');
+    if (bankBankEl) bankBankEl.innerText = cfg.bankName;
+    const bankAccEl = document.getElementById('payment-bank-acc');
+    if (bankAccEl) bankAccEl.innerText = cfg.accountNumber;
+    const bankIfscEl = document.getElementById('payment-bank-ifsc');
+    if (bankIfscEl) bankIfscEl.innerText = cfg.ifscCode;
+
+    // Official Authentic QR Image
+    const qrImg = document.getElementById('payment-qr-img');
+    if (qrImg) {
+      qrImg.src = cfg.qrImage || 'assets/avinash_sir_qr.jpg';
+    }
+
+    const submitSec = document.getElementById('payment-submit-section');
+    const pendingSec = document.getElementById('payment-pending-section');
+
+    if (isPending) {
+      if (submitSec) submitSec.classList.add('hidden');
+      if (pendingSec) pendingSec.classList.remove('hidden');
+      const utrDisplay = document.getElementById('payment-submitted-utr-display');
+      if (utrDisplay) utrDisplay.innerText = this.currentPaymentStudent.lastUtr || 'Submitted';
+      this.startApprovalPolling();
+    } else {
+      if (submitSec) submitSec.classList.remove('hidden');
+      if (pendingSec) pendingSec.classList.add('hidden');
+      const utrInput = document.getElementById('payment-utr-input');
+      if (utrInput) utrInput.value = '';
+    }
+
+    const modal = document.getElementById('payment-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+  },
+
+  closePaymentModal() {
+    this.stopApprovalPolling();
+    const modal = document.getElementById('payment-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    Auth.logout();
+    this.switchView('auth');
+  },
+
+  copyUpiId() {
+    const cfg = SheetSync.getPaymentConfig();
+    navigator.clipboard.writeText(cfg.upiId).then(() => {
+      const btn = document.getElementById('btn-copy-upi');
+      if (btn) {
+        const old = btn.innerHTML;
+        btn.innerHTML = '✓ Copied!';
+        btn.classList.add('bg-emerald-600');
+        setTimeout(() => {
+          btn.innerHTML = old;
+          btn.classList.remove('bg-emerald-600');
+        }, 2000);
+      }
+    });
+  },
+
+  copyAccountNumber() {
+    const cfg = SheetSync.getPaymentConfig();
+    navigator.clipboard.writeText(cfg.accountNumber).then(() => {
+      const btn = document.getElementById('btn-copy-acc');
+      if (btn) {
+        const old = btn.innerHTML;
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => {
+          btn.innerHTML = old;
+          btn.classList.remove('text-emerald-400');
+        }, 2000);
+      }
+    });
+  },
+
+  copyIfsc() {
+    const cfg = SheetSync.getPaymentConfig();
+    navigator.clipboard.writeText(cfg.ifscCode).then(() => {
+      const btn = document.getElementById('btn-copy-ifsc');
+      if (btn) {
+        const old = btn.innerHTML;
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => {
+          btn.innerHTML = old;
+          btn.classList.remove('text-emerald-400');
+        }, 2000);
+      }
+    });
+  },
+
+  copyBankDetails() {
+    const cfg = SheetSync.getPaymentConfig();
+    const text = `Beneficiary Name: ${cfg.name}\nBank Name: ${cfg.bankName}\nAccount Number: ${cfg.accountNumber}\nIFSC Code: ${cfg.ifscCode}\nAmount: ₹${cfg.fee}`;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('btn-copy-bank');
+      if (btn) {
+        const old = btn.innerHTML;
+        btn.innerHTML = '✓ Copied All Bank Details!';
+        btn.classList.add('bg-emerald-700');
+        setTimeout(() => {
+          btn.innerHTML = old;
+          btn.classList.remove('bg-emerald-700');
+        }, 2000);
+      }
+    });
+  },
+
+  async submitPaymentUtr() {
+    const utrInput = document.getElementById('payment-utr-input');
+    const utrVal = utrInput ? utrInput.value.trim() : '';
+
+    if (!utrVal || utrVal.length < 6) {
+      alert('Please enter your 12-digit UTR or Transaction ID from your payment receipt.');
+      return;
+    }
+
+    if (!this.currentPaymentStudent) {
+      alert('Student session expired. Please re-enter your mobile number.');
+      this.closePaymentModal();
+      return;
+    }
+
+    await SheetSync.submitPayment({
+      phone: this.currentPaymentStudent.phone,
+      studentName: this.currentPaymentStudent.name,
+      level: this.currentPaymentStudent.level,
+      utr: utrVal
+    });
+
+    this.currentPaymentStudent.accessStatus = 'PENDING_APPROVAL';
+    this.currentPaymentStudent.lastUtr = utrVal;
+
+    const submitSec = document.getElementById('payment-submit-section');
+    const pendingSec = document.getElementById('payment-pending-section');
+    if (submitSec) submitSec.classList.add('hidden');
+    if (pendingSec) pendingSec.classList.remove('hidden');
+
+    const utrDisplay = document.getElementById('payment-submitted-utr-display');
+    if (utrDisplay) utrDisplay.innerText = utrVal;
+
+    this.startApprovalPolling();
+    alert('Payment details submitted successfully! Avinash Sir has received an instant notification. We will notify you once approved.');
+  },
+
+  startApprovalPolling() {
+    this.stopApprovalPolling();
+    this.approvalPollInterval = setInterval(() => {
+      this.checkPaymentApproval(true);
+    }, 20000);
+  },
+
+  stopApprovalPolling() {
+    if (this.approvalPollInterval) {
+      clearInterval(this.approvalPollInterval);
+      this.approvalPollInterval = null;
+    }
+  },
+
+  async checkPaymentApproval(isSilent = false) {
+    if (!this.currentPaymentStudent) return;
+    const cleanPhone = String(this.currentPaymentStudent.phone).replace(/\D/g, '');
+
+    const btn = document.getElementById('btn-check-approval');
+    if (btn && !isSilent) {
+      btn.innerText = 'Connecting to Google Sheet...';
+    }
+
+    const res = await SheetSync.verifyStudent(cleanPhone);
+
+    if (btn && !isSilent) {
+      btn.innerHTML = '<span>🔄</span> Check Approval Status Now';
+    }
+
+    // STRICT APPROVAL ENFORCEMENT:
+    // Must be confirmed directly from the online Google Sheet (never local offline cache)!
+    if (res.student) {
+      const status = String(res.student.accessStatus || '').toUpperCase().trim();
+      
+      if (res.fromOnline && status === 'ACTIVE') {
+        this.stopApprovalPolling();
+        SoundEngine.playVictory();
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+        }
+        res.student.accessStatus = 'ACTIVE';
+        SheetSync.saveLocalUser(res.student);
+        Auth.currentUser = res.student;
+
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+
+        this.renderHeaderUser();
+        this.switchView('home');
+        alert('🎉 Payment verified by Avinash Sir in Google Sheet! Your 100-Day Math Quiz program is fully unlocked. Welcome aboard!');
+        return;
+      }
+    }
+
+    if (!isSilent) {
+      if (!res.fromOnline) {
+        alert("⚠️ Could not reach your Google Sheet to verify approval. Please check your internet connection.");
+      } else {
+        const curStatus = (res.student && res.student.accessStatus) ? res.student.accessStatus : 'PENDING_APPROVAL';
+        alert("⏳ Status: Still awaiting Avinash Sir's approval in Google Sheet.\n\nGoogle Sheet Status: " + curStatus + "\n\nAvinash Sir opens the Google Sheet (Column D) and changes your status to 'ACTIVE'. Once he does that, click here again or wait a few seconds and the quiz will unlock!");
+      }
+    }
+  },
+
+  // -------------------------------------------------------------
   // GLOBAL EVENTS
   // -------------------------------------------------------------
   attachGlobalEvents() {
@@ -853,6 +1104,8 @@ const App = {
           document.getElementById('reg-phone-display').innerText = res.phone;
           document.getElementById('reg-modal').classList.remove('hidden');
           document.getElementById('reg-modal').classList.add('flex');
+        } else if (res.paymentRequired || res.pendingApproval) {
+          this.openPaymentModal(res.student, !!res.pendingApproval);
         } else {
           this.switchView('home');
         }
@@ -871,7 +1124,11 @@ const App = {
         if (res.success) {
           document.getElementById('reg-modal').classList.add('hidden');
           document.getElementById('reg-modal').classList.remove('flex');
-          this.switchView('home');
+          if (res.paymentRequired) {
+            this.openPaymentModal(res.student, false);
+          } else {
+            this.switchView('home');
+          }
         } else {
           alert(res.message);
         }

@@ -1,6 +1,6 @@
 /**
  * =========================================================================
- * UPGRADE MATH QUIZ - GOOGLE APPS SCRIPT BACKEND
+ * UPGRADE MATH QUIZ - GOOGLE APPS SCRIPT BACKEND (v5 Monetization & Access Controller)
  * Created for: Avinash Sir
  * Connected to Sheet: Upgrade_Digital_Quiz
  * =========================================================================
@@ -8,6 +8,9 @@
  * FEATURES:
  * - 100 Columns for Days 1 to 100 to track 'Attempted' vs 'Not Attempted'
  * - Single Attempt Enforcement: each quiz can only be attempted once
+ * - Access Controller: Column D (ACTIVE, NO ACCESS, PENDING_APPROVAL, BLOCKED)
+ * - Monetization: ₹200 for 100 Days. Shows UPI QR Code & Bank details for non-coaching students
+ * - Instant Email Notifications to Avinash Sir on payment submission
  * - Admin Unlock Override dropdown per student (None, All Past Days, or Day N)
  * - Real-time student verification, quiz submission, and leaderboard ranking
  * =========================================================================
@@ -34,7 +37,7 @@ function setupSheets() {
     'Mobile_Number',
     'Student_Name',
     'Level',
-    'Status',                // ACTIVE, PENDING, BLOCKED
+    'Status',                // ACTIVE, NO ACCESS, PENDING_APPROVAL, BLOCKED
     'Admin_Unlock_Override', // None, All Past Days, or comma-separated days e.g. "1,2,5"
     'Total_Score',
     'Current_Streak',
@@ -68,6 +71,17 @@ function setupSheets() {
     
   studentSheet.setFrozenRows(1);
   studentSheet.setFrozenColumns(2); // Freeze Mobile & Name for easy horizontal scrolling!
+
+  // Add Data Validation dropdown for Column D (Status)
+  try {
+    const statusRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['ACTIVE', 'NO ACCESS', 'PENDING_APPROVAL', 'BLOCKED'], true)
+      .setAllowInvalid(true)
+      .build();
+    studentSheet.getRange(2, 4, 500, 1).setDataValidation(statusRule);
+  } catch (e) {
+    Logger.log('Validation rule set: ' + e);
+  }
   
   // Add sample students if table is empty
   if (studentSheet.getLastRow() === 1) {
@@ -83,7 +97,6 @@ function setupSheets() {
       new Date().toISOString(),
       new Date().toISOString()
     ];
-    // All 100 days start as Not Attempted
     for (let d = 1; d <= 100; d++) sampleRow1.push('Not Attempted');
     studentSheet.appendRow(sampleRow1);
     
@@ -133,7 +146,16 @@ function setupSheets() {
 }
 
 /**
- * Handles HTTP GET requests
+ * Helper to check if a cell truly represents an attempted day
+ * (Strictly prevents 'Not Attempted' from falsely matching 'attempted'!)
+ */
+function isDayAlreadyAttempted(cellValue) {
+  const val = String(cellValue || '').trim().toLowerCase();
+  return val.startsWith('attempted (') || (val.indexOf('attempted') !== -1 && val.indexOf('not') === -1);
+}
+
+/**
+ * Handles HTTP GET requests (including redundant fallback support for submissions)
  */
 function doGet(e) {
   const params = e.parameter || {};
@@ -146,6 +168,12 @@ function doGet(e) {
       return handleLeaderboard(params.level);
     } else if (action === 'student_history') {
       return handleStudentHistory(params.phone);
+    } else if (action === 'submit_quiz') {
+      return handleSubmitQuiz(params);
+    } else if (action === 'register') {
+      return handleRegister(params);
+    } else if (action === 'payment_submitted') {
+      return handlePaymentSubmitted(params);
     } else {
       return jsonResponse({
         status: 'success',
@@ -164,10 +192,14 @@ function doGet(e) {
 function doPost(e) {
   try {
     let payload = {};
-    if (e.postData && e.postData.contents) {
-      payload = JSON.parse(e.postData.contents);
-    } else {
-      payload = e.parameter || {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (jsonErr) {
+        payload = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      payload = e.parameter;
     }
     
     const action = payload.action;
@@ -175,6 +207,8 @@ function doPost(e) {
       return handleRegister(payload);
     } else if (action === 'submit_quiz') {
       return handleSubmitQuiz(payload);
+    } else if (action === 'payment_submitted') {
+      return handlePaymentSubmitted(payload);
     } else {
       return jsonResponse({ status: 'error', message: 'Unknown action: ' + action });
     }
@@ -209,11 +243,25 @@ function handleVerify(phone) {
       for (let d = 1; d <= 100; d++) {
         const colIdx = 9 + d; // Day 1 is col 10 (0-indexed)
         const cellVal = String(data[i][colIdx] || '').trim();
-        if (cellVal.toLowerCase().indexOf('attempted') !== -1) {
+        if (isDayAlreadyAttempted(cellVal)) {
           attemptedDays[d] = cellVal;
         }
       }
       
+      const isCoaching = isCoachingStudent(cleanPhone);
+      const rawStatus = String(data[i][3] || (isCoaching ? 'ACTIVE' : 'NO ACCESS')).trim().toUpperCase();
+      let normalizedStatus = isCoaching ? 'ACTIVE' : 'NO_ACCESS';
+      
+      if (rawStatus === 'ACTIVE' || isCoaching) {
+        normalizedStatus = 'ACTIVE';
+      } else if (rawStatus === 'PENDING_APPROVAL') {
+        normalizedStatus = 'PENDING_APPROVAL';
+      } else if (rawStatus === 'BLOCKED') {
+        normalizedStatus = 'BLOCKED';
+      } else {
+        normalizedStatus = 'NO_ACCESS';
+      }
+
       return jsonResponse({
         status: 'success',
         found: true,
@@ -221,8 +269,9 @@ function handleVerify(phone) {
           phone: cleanPhone,
           name: data[i][1],
           level: data[i][2],
-          accessStatus: data[i][3] || 'ACTIVE',
-          adminUnlockOverride: data[i][4] || 'None', // None, All Past Days, or custom day string
+          accessStatus: normalizedStatus, // ACTIVE, NO_ACCESS, PENDING_APPROVAL, BLOCKED
+          rawStatus: data[i][3] || 'ACTIVE',
+          adminUnlockOverride: data[i][4] || 'None',
           totalScore: Number(data[i][5]) || 0,
           currentStreak: Number(data[i][6]) || 0,
           quizzesCompleted: Number(data[i][7]) || 0,
@@ -265,6 +314,7 @@ function handleRegister(data) {
     if (rowPhone === phone) {
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(level);
+      SpreadsheetApp.flush();
       return jsonResponse({
         status: 'success',
         message: 'Student record updated!',
@@ -274,9 +324,9 @@ function handleRegister(data) {
           level: level,
           accessStatus: existingData[i][3] || 'ACTIVE',
           adminUnlockOverride: existingData[i][4] || 'None',
-          totalScore: existingData[i][5] || 0,
-          currentStreak: existingData[i][6] || 0,
-          quizzesCompleted: existingData[i][7] || 0,
+          totalScore: Number(existingData[i][5]) || 0,
+          currentStreak: Number(existingData[i][6]) || 0,
+          quizzesCompleted: Number(existingData[i][7]) || 0,
           attemptedDays: {}
         }
       });
@@ -284,26 +334,28 @@ function handleRegister(data) {
   }
   
   // New Student Registration
+  // Pre-approved coaching students get instant ACTIVE; other self-registrations start as NO ACCESS until paid & approved
+  const isCoaching = isCoachingStudent(phone);
+  const initialStatus = isCoaching ? 'ACTIVE' : 'NO ACCESS';
+  
   const now = new Date().toISOString();
   const newRow = [
     phone,
     name,
     level,
-    'ACTIVE',  // Default Active for coaching students
-    'None',    // Admin Unlock Override (Avinash Sir can change via dropdown)
-    0,         // Score
-    0,         // Streak
-    0,         // Quizzes Completed
+    initialStatus,
+    'None',
+    0, 0, 0,
     now,
     now
   ];
   
-  // Initialize all 100 days as 'Not Attempted'
   for (let d = 1; d <= 100; d++) {
     newRow.push('Not Attempted');
   }
   
   sheet.appendRow(newRow);
+  SpreadsheetApp.flush();
   
   return jsonResponse({
     status: 'success',
@@ -312,13 +364,107 @@ function handleRegister(data) {
       phone: phone,
       name: name,
       level: level,
-      accessStatus: 'ACTIVE',
+      accessStatus: initialStatus,
       adminUnlockOverride: 'None',
       totalScore: 0,
       currentStreak: 0,
       quizzesCompleted: 0,
       attemptedDays: {}
     }
+  });
+}
+
+function handlePaymentSubmitted(data) {
+  const phone = String(data.phone || '').trim().replace(/\D/g, '');
+  const utr = String(data.utr || '').trim();
+  const name = String(data.studentName || data.name || 'Student').trim();
+  const level = data.level || 'Junior (Grade 1-4)';
+  const amount = data.amount || '200';
+  
+  if (!phone) {
+    return jsonResponse({ status: 'error', message: 'Phone number is required.' });
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_STUDENTS);
+  if (!sheet) {
+    setupSheets();
+    sheet = ss.getSheetByName(SHEET_STUDENTS);
+  }
+
+  const dataRows = sheet.getDataRange().getValues();
+  let rowIndex = -1;
+  for (let i = 1; i < dataRows.length; i++) {
+    const rowPhone = String(dataRows[i][0]).trim().replace(/\D/g, '');
+    if (rowPhone === phone) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  const now = new Date();
+  if (rowIndex > 0) {
+    sheet.getRange(rowIndex, 4).setValue('PENDING_APPROVAL');
+    sheet.getRange(rowIndex, 5).setValue('UTR: ' + utr + ' (Rs ' + amount + ')');
+    sheet.getRange(rowIndex, 10).setValue(now.toISOString());
+  } else {
+    const newRow = [
+      phone,
+      name,
+      level,
+      'PENDING_APPROVAL',
+      'UTR: ' + utr + ' (Rs ' + amount + ')',
+      0, 0, 0,
+      now.toISOString(),
+      now.toISOString()
+    ];
+    for (let d = 1; d <= 100; d++) newRow.push('Not Attempted');
+    sheet.appendRow(newRow);
+  }
+  SpreadsheetApp.flush();
+
+  // Send Instant Email Notification to Avinash Sir
+  try {
+    const adminEmail = Session.getEffectiveUser().getEmail();
+    if (adminEmail) {
+      const subject = "🔔 [Upgrade Math Quiz] New Rs " + amount + " Payment: " + name + " (" + phone + ")";
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+          <h2 style="color: #4f46e5; margin-top: 0;">🔔 New Payment Received for Upgrade Math Quiz!</h2>
+          <p>Hello Avinash Sir,</p>
+          <p>A student has submitted payment for the <strong>100-Day Upgrade Math Quiz</strong> program.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Student Name:</strong></td><td style="padding: 8px; font-weight: bold;">${name}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Mobile Number:</strong></td><td style="padding: 8px; font-weight: bold;">${phone}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Level:</strong></td><td style="padding: 8px;">${level}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Amount Paid:</strong></td><td style="padding: 8px; font-weight: bold; color: #16a34a;">Rs ${amount}</td></tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>UTR / Reference ID:</strong></td><td style="padding: 8px; font-family: monospace; background: #f8fafc;">${utr || 'Not provided'}</td></tr>
+            <tr><td style="padding: 8px; color: #64748b;"><strong>Date:</strong></td><td style="padding: 8px;">${now.toLocaleString()}</td></tr>
+          </table>
+          <div style="background: #eef2ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #3730a3; font-weight: bold;">How to Activate this Student:</p>
+            <ol style="margin: 8px 0 0 20px; color: #4338ca; padding: 0;">
+              <li>Open your Google Sheet: <a href="https://docs.google.com/spreadsheets/d/1u_ITXVTH8Q-Du72M_uPwbYz15SMgHxIQxP5OUy6xIB4" target="_blank">Upgrade_Digital_Quiz</a></li>
+              <li>Find the row for <strong>${phone}</strong></li>
+              <li>In <strong>Column D (Status)</strong>, change <code>PENDING_APPROVAL</code> to <strong><code>ACTIVE</code></strong></li>
+            </ol>
+          </div>
+          <p style="color: #64748b; font-size: 12px; margin-top: 30px;">Upgrade Math Quiz automated notification engine</p>
+        </div>
+      `;
+      MailApp.sendEmail({
+        to: adminEmail,
+        subject: subject,
+        htmlBody: htmlBody
+      });
+    }
+  } catch (mailErr) {
+    Logger.log("Email notification error: " + mailErr);
+  }
+
+  return jsonResponse({
+    status: 'success',
+    message: 'Payment details submitted successfully! Avinash Sir has been notified.'
   });
 }
 
@@ -336,12 +482,12 @@ function handleSubmitQuiz(data) {
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
   let studentSheet = ss.getSheetByName(SHEET_STUDENTS);
-  if (!subSheet || !studentSheet) {
+  let subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
+  if (!studentSheet || !subSheet) {
     setupSheets();
-    subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
     studentSheet = ss.getSheetByName(SHEET_STUDENTS);
+    subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
   }
   
   const studentRows = studentSheet.getDataRange().getValues();
@@ -355,7 +501,7 @@ function handleSubmitQuiz(data) {
       // Enforce single attempt: check if Day_N was already attempted
       const dayColIndex = 10 + day; // 1-based column: Col 11 is Day 1
       const existingStatus = String(studentRows[i][dayColIndex - 1] || '').trim();
-      if (existingStatus.toLowerCase().indexOf('attempted') !== -1) {
+      if (isDayAlreadyAttempted(existingStatus)) {
         return jsonResponse({
           status: 'error',
           alreadyAttempted: true,
@@ -368,21 +514,7 @@ function handleSubmitQuiz(data) {
   
   const now = new Date();
   
-  // 1. Append to Quiz_Submissions log
-  subSheet.appendRow([
-    now.toISOString(),
-    phone,
-    data.studentName || 'Student',
-    data.level || 'Junior (Grade 1-4)',
-    day,
-    score,
-    accuracy,
-    timeTaken,
-    correctCount,
-    timerMode
-  ]);
-  
-  // 2. Mark Day_N as 'Attempted (score pts)' and update cumulative metrics
+  // 1. Mark Day_N as 'Attempted (score pts)' and update cumulative metrics FIRST
   if (studentRowIndex > 0) {
     const dayColIndex = 10 + day;
     studentSheet.getRange(studentRowIndex, dayColIndex).setValue('Attempted (' + score + ' pts)');
@@ -396,6 +528,27 @@ function handleSubmitQuiz(data) {
     studentSheet.getRange(studentRowIndex, 7).setValue(curStreak + 1);
     studentSheet.getRange(studentRowIndex, 8).setValue(curCount + 1);
     studentSheet.getRange(studentRowIndex, 10).setValue(now.toISOString());
+    SpreadsheetApp.flush();
+  }
+  
+  // 2. Append to Quiz_Submissions log
+  try {
+    if (subSheet) {
+      subSheet.appendRow([
+        now.toISOString(),
+        phone,
+        data.studentName || 'Student',
+        data.level || 'Junior (Grade 1-4)',
+        day,
+        score,
+        accuracy,
+        timeTaken,
+        correctCount,
+        timerMode
+      ]);
+    }
+  } catch (subErr) {
+    Logger.log("Submissions log append error: " + subErr);
   }
   
   return jsonResponse({
@@ -415,7 +568,7 @@ function handleLeaderboard(level) {
   const students = [];
   
   for (let i = 1; i < data.length; i++) {
-    const status = data[i][3] || 'ACTIVE';
+    const status = String(data[i][3] || 'ACTIVE').trim().toUpperCase();
     if (status === 'BLOCKED') continue;
     
     const rowLevel = data[i][2];
@@ -470,7 +623,7 @@ function handleStudentHistory(phone) {
   });
 }
 
-function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
