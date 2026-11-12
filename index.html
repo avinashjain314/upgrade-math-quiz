@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Upgrade Math Quiz by Avinash Sir</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Global Navigation Header -->
+  <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="App.switchView('home')">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/25">
+          📐
+        </div>
+        <div>
+          <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
+            Upgrade Math Quiz
+          </h1>
+          <p class="text-[11px] font-medium text-indigo-400 tracking-wide mt-0.5">
+            by Avinash Sir
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Sound Toggle -->
+        <button onclick="SoundEngine.toggleMute(); this.innerText = SoundEngine.enabled ? '🔊' : '🔇'" class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 transition text-sm">
+          🔊
+        </button>
+
+        <!-- Rough Pad Toggle -->
+        <button onclick="document.getElementById('roughpad-modal').classList.toggle('hidden')" class="px-3 py-1.5 rounded-xl bg-indigo-950/80 border border-indigo-500/40 hover:bg-indigo-900 transition text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+          <span>✏️</span> Rough Sheet
+        </button>
+
+        <!-- User Profile Pill -->
+        <div id="header-user-badge"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 pb-24">
+
+    <!-- 1. AUTH / LOGIN VIEW -->
+    <section id="view-auth" class="min-h-[75vh] flex items-center justify-center">
+      <div class="max-w-md w-full bg-slate-900/90 border border-slate-800/90 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-600 to-pink-500 mx-auto flex items-center justify-center text-4xl shadow-xl shadow-indigo-500/30">
+          🎯
+        </div>
+        <div>
+          <h2 class="text-3xl font-black text-white">Upgrade Math Quiz</h2>
+          <p class="text-xs font-semibold text-indigo-400 uppercase tracking-widest mt-1">by Avinash Sir</p>
+          <p class="text-sm text-slate-400 mt-3">
+            Enter your 10-digit mobile number to access your 100-day daily homework quiz challenge!
+          </p>
+        </div>
+
+        <form id="auth-form" class="space-y-4 text-left">
+          <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mobile Number</label>
+            <div class="relative">
+              <span class="absolute left-4 top-3.5 text-sm font-bold text-slate-500">+91</span>
+              <input type="tel" id="auth-phone" maxlength="10" placeholder="Enter 10-digit number" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-14 pr-4 text-white text-base font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl shadow-indigo-600/25 transition transform active:scale-95 text-base flex items-center justify-center gap-2">
+            <span>Continue ➔</span>
+          </button>
+        </form>
+
+        <div class="pt-4 border-t border-slate-800/60 text-xs text-slate-400 space-y-1">
+          <p>✨ <strong>Avinash Sir Coaching Students:</strong> Free complete access!</p>
+          <p>🧪 Quick test demo mobile: <code class="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 font-mono font-bold">9876543210</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. HOME DASHBOARD VIEW -->
+    <section id="view-home" class="hidden space-y-6">
+      <div id="home-welcome-card"></div>
+      <div id="home-missed-days-banner" class="hidden"></div>
+      <div id="home-today-quiz-card"></div>
+      <div id="home-daily-trick-card"></div>
+    </section>
+
+    <!-- 3. ROADMAP VIEW (100 DAYS) -->
+    <section id="view-roadmap" class="hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-black text-white">100-Day Math Roadmap</h2>
+          <p class="text-xs text-slate-400">Complete your daily homework quiz to unlock days and conquer the leaderboard!</p>
+        </div>
+        <button onclick="App.openQuizSetup(1)" class="text-xs font-bold px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-white">
+          Jump to Day 1
+        </button>
+      </div>
+
+      <div id="roadmap-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+    </section>
+
+    <!-- 4. ACTIVE QUIZ PLAY VIEW -->
+    <section id="view-quiz" class="hidden space-y-6">
+      <!-- Quiz Top Info & Progress Bar -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <span id="quiz-day-badge" class="px-2.5 py-1 rounded-full font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Day 1</span>
+            <span id="quiz-diff-badge" class="px-2.5 py-1 rounded-full font-bold">🟢 Easy (10 pts)</span>
+          </div>
+
+          <!-- Timer / Points -->
+          <div class="flex items-center gap-4">
+            <div id="quiz-timer-container" class="flex items-center gap-1.5 font-bold text-amber-400">
+              <span>⏱️</span>
+              <span id="quiz-timer-text">30s</span>
+            </div>
+            <div class="font-black text-indigo-400">
+              Score: <span id="quiz-live-score">0 pts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timer progress indicator -->
+        <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+          <div id="quiz-timer-bar" class="h-full bg-indigo-500 transition-all duration-1000 w-full"></div>
+        </div>
+
+        <!-- Question Counter & Overall Quiz Progress Bar -->
+        <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+          <span id="quiz-progress-text">Question 1 of 20</span>
+          <span>Target: 20/20</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div id="quiz-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300 w-1/20"></div>
+        </div>
+      </div>
+
+      <!-- Question Card -->
+      <div class="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div>
+          <span id="quiz-topic-text" class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+            Arithmetic
+          </span>
+          <h3 id="quiz-question-text" class="text-xl sm:text-2xl font-bold text-white mt-2 leading-relaxed">
+            Loading question...
+          </h3>
+        </div>
+
+        <!-- Multiple Choice Options Grid -->
+        <div id="quiz-options-grid" class="grid grid-cols-1 gap-3"></div>
+
+        <!-- Answer Feedback & Explanation Box -->
+        <div id="quiz-feedback-box" class="hidden">
+          <p id="quiz-feedback-text"></p>
+        </div>
+
+        <!-- Next Button -->
+        <button id="quiz-next-btn" onclick="App.nextQuestion()" class="hidden w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl shadow-xl transition transform active:scale-95 text-base text-center">
+          Next Question ➔
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. LEADERBOARD VIEW -->
+    <section id="view-leaderboard" class="hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-black text-white">Leaderboard & Rankings</h2>
+          <p class="text-xs text-slate-400">Compete with fellow students and reach the top 3 podium!</p>
+        </div>
+        <button onclick="Leaderboard.render('leaderboard-content')" class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 transition text-xs font-bold text-slate-300">
+          🔄 Refresh
+        </button>
+      </div>
+
+      <div id="leaderboard-content"></div>
+    </section>
+
+    <!-- 6. BADGES VIEW -->
+    <section id="view-badges" class="hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-black text-white">Achievement Hall</h2>
+        <p class="text-xs text-slate-400">Unlock special badges by maintaining daily streaks and scoring high points!</p>
+      </div>
+
+      <div id="badges-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- 7. SETTINGS & ADMIN VIEW -->
+    <section id="view-settings" class="hidden space-y-6">
+      <div>
+        <h2 class="text-2xl font-black text-white">Settings & Profile</h2>
+        <p class="text-xs text-slate-400">Manage your student account, Google Sheet integration, and preferences.</p>
+      </div>
+
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <h3 class="font-bold text-sm text-white">Student Information</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-slate-400">Name:</span>
+            <p id="settings-user-name" class="font-bold text-white text-sm mt-0.5">-</p>
+          </div>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-slate-400">Mobile:</span>
+            <p id="settings-user-phone" class="font-bold text-white text-sm mt-0.5">-</p>
+          </div>
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-slate-400">Level Track:</span>
+            <p id="settings-user-level" class="font-bold text-white text-sm mt-0.5">-</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 pt-2">
+          <button onclick="Auth.logout(); App.switchView('auth')" class="px-4 py-2 bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-xl hover:bg-rose-900 transition">
+            Switch Student / Logout
+          </button>
+          <button onclick="if(confirm('Reset local browser test cache for fresh testing?')){ localStorage.clear(); location.reload(); }" class="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-bold rounded-xl transition">
+            🧹 Reset Local Test Cache
+          </button>
+        </div>
+      </div>
+
+      <!-- Program Day Controller for Avinash Sir -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📅</span>
+          <div>
+            <h3 class="font-bold text-sm text-white">Active Program Day (1 to 100)</h3>
+            <p class="text-xs text-slate-400">Controls which day is "Today's Quiz" for your students. Future days and missed past days stay locked!</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="text-xs text-slate-300 font-bold">Today is Day #:</label>
+          <input type="number" id="settings-program-day" min="1" max="100" value="1" class="w-24 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm font-bold text-amber-400 focus:outline-none focus:border-indigo-500">
+          <span class="text-xs text-slate-400">(Day 1 to 100)</span>
+        </div>
+      </div>
+
+      <!-- Google Sheet Apps Script URL Configuration -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📊</span>
+          <div>
+            <h3 class="font-bold text-sm text-white">Google Sheet Apps Script Web App URL</h3>
+            <p class="text-xs text-slate-400">Connected to your sheet: <a href="https://docs.google.com/spreadsheets/d/1u_ITXVTH8Q-Du72M_uPwbYz15SMgHxIQxP5OUy6xIB4" target="_blank" class="text-indigo-400 underline">Upgrade_Digital_Quiz</a></p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300">
+          Once you deploy the script in <code class="text-indigo-400 bg-slate-950 px-1 py-0.5 rounded">google-apps-script/Code.gs</code> as a Web App, paste the URL below to sync live scores to your Google Sheet!
+        </p>
+
+        <div class="flex gap-2">
+          <input type="url" id="settings-script-url" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+          <button onclick="App.saveSettings()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800/80 px-4 py-2">
+    <div class="max-w-md mx-auto flex items-center justify-around text-[10px] font-bold">
+      <button onclick="App.switchView('home')" data-view="home" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 transition">
+        <span class="text-xl">🏠</span>
+        <span>Home</span>
+      </button>
+      <button onclick="App.switchView('roadmap')" data-view="roadmap" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition">
+        <span class="text-xl">🗺️</span>
+        <span>100 Days</span>
+      </button>
+      <button onclick="App.switchView('leaderboard')" data-view="leaderboard" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition">
+        <span class="text-xl">🏆</span>
+        <span>Rankings</span>
+      </button>
+      <button onclick="App.switchView('badges')" data-view="badges" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition">
+        <span class="text-xl">🎖️</span>
+        <span>Badges</span>
+      </button>
+      <button onclick="App.switchView('settings')" data-view="settings" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition">
+        <span class="text-xl">⚙️</span>
+        <span>Settings</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- MODALS -->
+  <!-- ============================================================ -->
+
+  <!-- 1. REGISTRATION MODAL (ONE-TIME FOR NEW STUDENTS) -->
+  <div id="reg-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div class="text-center">
+        <span class="text-3xl">🌟</span>
+        <h3 class="text-2xl font-black text-white mt-1">One-Time Registration</h3>
+        <p class="text-xs text-indigo-400 font-semibold">Upgrade Math Quiz by Avinash Sir</p>
+        <p class="text-xs text-slate-400 mt-2">Mobile: <strong id="reg-phone-display" class="text-white"></strong></p>
+      </div>
+
+      <form id="reg-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Student Full Name</label>
+          <input type="text" id="reg-name" required placeholder="e.g. Aarav Sharma" class="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 px-4 text-white text-sm focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Your Level / Grade</label>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950 rounded-2xl border border-slate-800 hover:border-indigo-500 cursor-pointer transition">
+              <input type="radio" name="reg-level" value="Junior (Grade 1-4)" checked class="text-indigo-600 focus:ring-0">
+              <div>
+                <p class="text-sm font-bold text-white">Junior Level (Grade 1 to 4)</p>
+                <p class="text-[11px] text-slate-400">Arithmetic, Story sums, Fractions, Decimals, Clock, Money</p>
+              </div>
+            </label>
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950 rounded-2xl border border-slate-800 hover:border-indigo-500 cursor-pointer transition">
+              <input type="radio" name="reg-level" value="Senior (Grade 4-10)" class="text-indigo-600 focus:ring-0">
+              <div>
+                <p class="text-sm font-bold text-white">Senior Level (Grade 4 to 10)</p>
+                <p class="text-[11px] text-slate-400">BODMAS, Algebra, Percentages, Profit & Loss, Geometry, Exponents</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl shadow-xl transition transform active:scale-95 text-sm">
+          Complete Registration & Start ➔
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. QUIZ SETUP & TIMER OPTIONS MODAL -->
+  <div id="quiz-setup-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 id="setup-modal-day" class="text-xl font-black text-white">Day Quiz Setup</h3>
+          <p id="setup-modal-track" class="text-xs text-indigo-400 font-semibold">-</p>
+        </div>
+        <button onclick="App.closeQuizSetup()" class="text-slate-400 hover:text-white p-2">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Structure -->
+        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2 text-xs">
+          <p class="font-bold text-white">📋 Today's 20-Question Breakdown:</p>
+          <div class="grid grid-cols-3 gap-2 text-center pt-1">
+            <div class="p-2 bg-emerald-950/40 rounded-xl border border-emerald-500/30">
+              <p class="font-extrabold text-emerald-400">5 Easy</p>
+              <p class="text-[10px] text-slate-400">10 pts each</p>
+            </div>
+            <div class="p-2 bg-amber-950/40 rounded-xl border border-amber-500/30">
+              <p class="font-extrabold text-amber-400">7 Medium</p>
+              <p class="text-[10px] text-slate-400">20 pts each</p>
+            </div>
+            <div class="p-2 bg-rose-950/40 rounded-xl border border-rose-500/30">
+              <p class="font-extrabold text-rose-400">8 Hard</p>
+              <p class="text-[10px] text-slate-400">30 pts each</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optional Timer Switch -->
+        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-bold text-white flex items-center gap-1.5">
+              <span>⏱️</span> Optional Timer
+            </p>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Afraid of the timer? Turn it OFF! You can solve calmly at your own pace without penalty.
+            </p>
+            <p class="text-[10px] text-amber-400 font-semibold mt-1">
+              *Timer ON awards up to +5 Speed Bonus points per question!
+            </p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="setup-timer-toggle" checked class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+      </div>
+
+      <button onclick="App.startQuizFromSetup()" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl transition transform active:scale-95 text-base flex items-center justify-center gap-2">
+        <span>Start 20 Questions ➔</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. QUIZ RESULT & 3D MYSTERY CHEST MODAL -->
+  <div id="quiz-result-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center">
+      <div>
+        <span class="text-4xl">🎉</span>
+        <h3 id="result-day-text" class="text-2xl font-black text-white mt-1">Quiz Completed!</h3>
+        <p class="text-xs font-semibold text-indigo-400 uppercase tracking-widest">Upgrade Math Quiz</p>
+      </div>
+
+      <!-- Score Banner -->
+      <div class="bg-gradient-to-br from-indigo-950 via-slate-950 to-purple-950 border border-indigo-500/40 p-5 rounded-2xl space-y-2">
+        <p class="text-xs text-slate-400">Total Score Earned</p>
+        <p id="result-score-text" class="text-3xl font-black text-amber-400">0 Points</p>
+        <p id="result-accuracy-text" class="text-xs font-bold text-emerald-400">20/20 Correct (100%)</p>
+      </div>
+
+      <!-- Mystery Chest Section -->
+      <div id="mystery-chest-unopened" class="p-6 bg-slate-950 rounded-2xl border border-amber-500/40 space-y-3 cursor-pointer" onclick="App.openMysteryChest()">
+        <div class="text-5xl chest-animate">🎁</div>
+        <h4 class="text-base font-bold text-amber-300">Daily Mystery Chest Unlocked!</h4>
+        <p class="text-xs text-slate-400">Tap the chest to reveal Avinash Sir's secret Vedic math trick & daily motivation!</p>
+      </div>
+
+      <!-- Mystery Chest Opened State -->
+      <div id="mystery-chest-opened" class="hidden p-5 bg-gradient-to-br from-amber-950/40 to-slate-950 rounded-2xl border border-amber-500/50 space-y-3 text-left">
+        <div class="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+          <span>✨</span> Avinash Sir's Secret Trick of the Day
+        </div>
+        <h4 id="chest-trick-title" class="font-bold text-white text-sm">Trick Title</h4>
+        <p id="chest-trick-content" class="text-xs text-slate-300 bg-slate-950/80 p-3 rounded-xl border border-slate-800 font-mono leading-relaxed"></p>
+        <p id="chest-quote-text" class="text-xs italic text-amber-300/90 text-right"></p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-3">
+        <button onclick="App.openReviewModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition">
+          📖 Review Solutions
+        </button>
+        <button onclick="App.closeResultModal()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition">
+          Back to Dashboard ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. REVIEW QUESTIONS MODAL -->
+  <div id="quiz-review-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="max-w-2xl w-full max-h-[85vh] bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-xl font-black text-white">Quiz Review & Step-by-Step Solutions</h3>
+          <p class="text-xs text-indigo-400">Pedagogical explanations prepared by Avinash Sir</p>
+        </div>
+        <button onclick="App.closeReviewModal()" class="text-slate-400 hover:text-white p-2">✕</button>
+      </div>
+
+      <div id="review-questions-list" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-end">
+        <button onclick="App.closeReviewModal()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition">
+          Done Reviewing
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 30-SECOND BRAIN GYM & FOCUS CALMER MODAL -->
+  <div id="focus-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="text-left">
+          <h3 class="font-black text-lg text-white flex items-center gap-2">
+            <span>🧠</span> 30-Second Brain Gym
+          </h3>
+          <p class="text-[11px] text-indigo-400 font-semibold">Avinash Sir's Focus Calibration</p>
+        </div>
+        <button onclick="App.closeFocusBooster()" class="text-slate-400 hover:text-white p-1 text-sm">✕</button>
+      </div>
+
+      <!-- Breathing Animation Circle -->
+      <div class="py-6 flex flex-col items-center justify-center">
+        <div id="focus-breath-circle" class="w-36 h-36 rounded-full bg-gradient-to-tr from-indigo-500 to-cyan-400 transition-all duration-[4000ms] transform scale-100 shadow-2xl shadow-indigo-500/50 flex items-center justify-center text-3xl">
+          🧘
+        </div>
+        <h4 id="focus-instruction-text" class="text-base font-extrabold text-white mt-6 transition-all duration-300">
+          Breathe In Slowly... 🌬️ (4s)
+        </h4>
+        <p class="text-xs text-slate-400 mt-2 max-w-xs">
+          Calm your nervous system. Oxygenate your brain cells to calculate faster and eliminate exam anxiety.
+        </p>
+      </div>
+
+      <button onclick="App.closeFocusBooster()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-lg transition text-sm">
+        I Am Focused & Ready! 🚀
+      </button>
+    </div>
+  </div>
+
+  <!-- 6. FLOATING ROUGH PAD / WHITEBOARD MODAL -->
+  <div id="roughpad-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-2xl flex flex-col space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">✏️</span>
+          <h3 class="font-bold text-sm text-white">Digital Rough Sheet</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Colors -->
+          <button onclick="RoughPad.setColor('#38bdf8')" class="w-6 h-6 rounded-full bg-sky-400 border border-white/20"></button>
+          <button onclick="RoughPad.setColor('#f43f5e')" class="w-6 h-6 rounded-full bg-rose-500 border border-white/20"></button>
+          <button onclick="RoughPad.setColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500 border border-white/20"></button>
+          <button onclick="RoughPad.setColor('#ffffff')" class="w-6 h-6 rounded-full bg-white border border-white/20"></button>
+          <button onclick="RoughPad.setEraser()" class="px-2 py-1 bg-slate-800 text-[10px] rounded font-bold text-slate-300">Eraser</button>
+          <button onclick="RoughPad.clear()" class="px-2 py-1 bg-rose-950 border border-rose-500/40 text-[10px] rounded font-bold text-rose-300">Clear</button>
+          <button onclick="document.getElementById('roughpad-modal').classList.add('hidden')" class="text-slate-400 hover:text-white p-1 ml-2">✕</button>
+        </div>
+      </div>
+
+      <div class="w-full h-80 sm:h-96 bg-slate-950 rounded-2xl border border-slate-800 relative overflow-hidden">
+        <canvas id="roughpad-canvas" class="w-full h-full block"></canvas>
+      </div>
+      <p class="text-[10px] text-slate-500 text-center">Solve your rough calculations directly with finger or stylus. Tap ✕ when finished.</p>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPTS (IN STRICT DEPENDENCY ORDER) -->
+  <script src="js/data/badges.js"></script>
+  <script src="js/data/vedicTricks.js"></script>
+  <script src="js/topics/funTrivia.js"></script>
+  <script src="js/topics/juniorMath.js"></script>
+  <script src="js/topics/seniorMath.js"></script>
+  <script src="js/questionEngine.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/roughPad.js"></script>
+  <script src="js/sheetSync.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/leaderboard.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

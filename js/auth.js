@@ -1,0 +1,170 @@
+/**
+ * Authentication & Access Controller
+ * Enforces single attempt per day, strict today-only access,
+ * and admin unlock overrides from Google Sheet.
+ * 
+ * Upgrade Math Quiz by Avinash Sir
+ */
+
+const Auth = {
+  currentUser: null,
+  isAdmin: false,
+
+  init() {
+    this.currentUser = SheetSync.getCurrentUser();
+    return this.currentUser;
+  },
+
+  isLoggedIn() {
+    return !!this.currentUser;
+  },
+
+  getCurrentUser() {
+    return this.currentUser;
+  },
+
+  // Current program day (1 to 100). Default is Day 1 or configured in settings
+  getCurrentProgramDay() {
+    const saved = localStorage.getItem('umq_program_day');
+    return saved ? parseInt(saved, 10) : 1;
+  },
+
+  setCurrentProgramDay(day) {
+    localStorage.setItem('umq_program_day', Math.max(1, Math.min(100, day)));
+  },
+
+  async login(phone) {
+    const clean = String(phone).replace(/\D/g, '');
+    if (clean.length < 10) {
+      return { success: false, message: 'Please enter a valid 10-digit mobile number.' };
+    }
+
+    // Admin passcode for Avinash Sir
+    if (clean === '9999999999' || phone === 'admin100') {
+      this.isAdmin = true;
+      const adminUser = {
+        phone: '9999999999',
+        name: 'Avinash Sir (Admin)',
+        level: 'Senior (Grade 4-10)',
+        accessStatus: 'ACTIVE',
+        adminUnlockOverride: 'All Past Days',
+        totalScore: 99999,
+        currentStreak: 100,
+        quizzesCompleted: 100,
+        attemptedDays: {},
+        isAdmin: true
+      };
+      this.currentUser = adminUser;
+      SheetSync.saveLocalUser(adminUser);
+      return { success: true, isNew: false, student: adminUser, isAdmin: true };
+    }
+
+    const res = await SheetSync.verifyStudent(clean);
+    if (res.student) {
+      if (res.student.accessStatus === 'BLOCKED') {
+        return {
+          success: false,
+          blocked: true,
+          message: 'Your account access is currently paused. Please contact Avinash Sir to resume.'
+        };
+      }
+      if (res.student.accessStatus === 'PENDING') {
+        return {
+          success: false,
+          pending: true,
+          message: 'Your enrollment is pending confirmation. Once approved by Avinash Sir, your quiz access will be activated!'
+        };
+      }
+
+      this.currentUser = res.student;
+      SheetSync.saveLocalUser(res.student);
+      return { success: true, isNew: false, student: res.student };
+    }
+
+    return { success: true, isNew: true, phone: clean };
+  },
+
+  async completeRegistration(phone, name, level) {
+    if (!name || name.trim().length < 2) {
+      return { success: false, message: 'Please enter a valid student name.' };
+    }
+
+    const res = await SheetSync.registerStudent({
+      phone: phone,
+      name: name.trim(),
+      level: level
+    });
+
+    if (res.success) {
+      this.currentUser = res.student;
+      return { success: true, student: res.student };
+    }
+
+    return { success: false, message: 'Registration failed. Please try again.' };
+  },
+
+  logout() {
+    this.currentUser = null;
+    this.isAdmin = false;
+    SheetSync.clearCurrentUser();
+  },
+
+  // Check if a specific day was already attempted by THIS student
+  isDayAttempted(dayNumber) {
+    if (!this.currentUser) return false;
+    const cleanPhone = String(this.currentUser.phone || '').trim().replace(/\D/g, '');
+
+    // Check user's attemptedDays record
+    if (this.currentUser.attemptedDays && this.currentUser.attemptedDays[dayNumber]) {
+      return true;
+    }
+    // Cross-check history STRICTLY for this student's mobile number
+    const history = SheetSync.getLocalHistory(cleanPhone);
+    return history.some(h => Number(h.dayNumber) === Number(dayNumber));
+  },
+
+  // Determine access status for a day
+  getDayStatus(dayNumber) {
+    if (!this.currentUser) return { state: 'locked', reason: 'Please login' };
+
+    const today = this.getCurrentProgramDay();
+    const isAttempted = this.isDayAttempted(dayNumber);
+
+    // 1. If already attempted: single attempt rule means it's closed (review solutions only)
+    if (isAttempted) {
+      return { state: 'attempted', canPlay: false, canReview: true, label: 'Attempted' };
+    }
+
+    // 2. Admin has universal access
+    if (this.currentUser.isAdmin) {
+      return { state: 'unlocked', canPlay: true, canReview: false, label: 'Admin Unlocked' };
+    }
+
+    // 3. Today's Quiz (Available to take!)
+    if (dayNumber === today) {
+      return { state: 'today', canPlay: true, canReview: false, label: 'Today\'s Quiz' };
+    }
+
+    // 4. Past Day (< Today) that was missed:
+    if (dayNumber < today) {
+      // Check if Avinash Sir unlocked it from Google Sheet via Admin_Unlock_Override dropdown
+      const override = String(this.currentUser.adminUnlockOverride || 'None').trim();
+      const isAllUnlocked = (override === 'All Past Days' || override === 'ALL_UNLOCKED');
+      const isSpecificUnlocked = override.split(',').map(s => s.trim().replace(/\D/g, '')).includes(String(dayNumber));
+
+      if (isAllUnlocked || isSpecificUnlocked) {
+        return { state: 'admin_unlocked', canPlay: true, canReview: false, label: 'Admin Unlocked' };
+      } else {
+        // Missed and locked by default!
+        return { state: 'missed_locked', canPlay: false, canReview: false, label: 'Missed & Locked' };
+      }
+    }
+
+    // 5. Future Day (> Today)
+    return { state: 'future_locked', canPlay: false, canReview: false, label: `Unlocks Day ${dayNumber}` };
+  }
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = Auth;
+}
