@@ -19,6 +19,32 @@
 const SHEET_STUDENTS = 'Students_Access';
 const SHEET_SUBMISSIONS = 'Quiz_Submissions';
 
+// Whitelist of Avinash Sir's Coaching Students (Always 100% Free Lifetime Access)
+const COACHING_STUDENTS = [
+  '9876543210', // Demo Student (Sara)
+  '9876543211', // Demo Student (Aarav)
+  '9999999999'  // Avinash Sir (Admin)
+  // Avinash Sir can add additional numbers here
+];
+
+function isCoachingStudent(phone) {
+  var clean = String(phone || '').trim().replace(/\D/g, '');
+  return COACHING_STUDENTS.indexOf(clean) !== -1;
+}
+
+// Resilient Sheet Tab Getter (supports 'Students_Access', 'Students', or sheet 0)
+function getStudentSheet(ss) {
+  return getStudentSheet(ss) || ss.getSheetByName('Students') || ss.getSheets()[0];
+}
+
+function getSubmissionsSheet(ss) {
+  var s = getSubmissionsSheet(ss);
+  if (!s) {
+    s = ss.insertSheet(SHEET_SUBMISSIONS);
+  }
+  return s;
+}
+
 /**
  * Setup function to initialize sheets and 100-day columns.
  * Run this function once from Extensions > Apps Script editor!
@@ -27,7 +53,7 @@ function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   // 1. Setup Students_Access Sheet
-  let studentSheet = ss.getSheetByName(SHEET_STUDENTS);
+  let studentSheet = getStudentSheet(ss);
   if (!studentSheet) {
     studentSheet = ss.insertSheet(SHEET_STUDENTS);
   }
@@ -117,7 +143,7 @@ function setupSheets() {
   }
   
   // 2. Setup Quiz_Submissions Sheet
-  let subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
+  let subSheet = getSubmissionsSheet(ss);
   if (!subSheet) {
     subSheet = ss.insertSheet(SHEET_SUBMISSIONS);
   }
@@ -228,10 +254,10 @@ function handleVerify(phone) {
   
   const cleanPhone = String(phone).trim().replace(/\D/g, '');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_STUDENTS);
+  let sheet = getStudentSheet(ss);
   if (!sheet) {
     setupSheets();
-    sheet = ss.getSheetByName(SHEET_STUDENTS);
+    sheet = getStudentSheet(ss);
   }
   
   const data = sheet.getDataRange().getValues();
@@ -302,10 +328,10 @@ function handleRegister(data) {
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_STUDENTS);
+  let sheet = getStudentSheet(ss);
   if (!sheet) {
     setupSheets();
-    sheet = ss.getSheetByName(SHEET_STUDENTS);
+    sheet = getStudentSheet(ss);
   }
   
   const existingData = sheet.getDataRange().getValues();
@@ -386,10 +412,10 @@ function handlePaymentSubmitted(data) {
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_STUDENTS);
+  let sheet = getStudentSheet(ss);
   if (!sheet) {
     setupSheets();
-    sheet = ss.getSheetByName(SHEET_STUDENTS);
+    sheet = getStudentSheet(ss);
   }
 
   const dataRows = sheet.getDataRange().getValues();
@@ -482,12 +508,12 @@ function handleSubmitQuiz(data) {
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let studentSheet = ss.getSheetByName(SHEET_STUDENTS);
-  let subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
+  let studentSheet = getStudentSheet(ss);
+  let subSheet = getSubmissionsSheet(ss);
   if (!studentSheet || !subSheet) {
     setupSheets();
-    studentSheet = ss.getSheetByName(SHEET_STUDENTS);
-    subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
+    studentSheet = getStudentSheet(ss);
+    subSheet = getSubmissionsSheet(ss);
   }
   
   const studentRows = studentSheet.getDataRange().getValues();
@@ -559,7 +585,7 @@ function handleSubmitQuiz(data) {
 
 function handleLeaderboard(level) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_STUDENTS);
+  let sheet = getStudentSheet(ss);
   if (!sheet) {
     return jsonResponse({ status: 'success', leaderboard: [] });
   }
@@ -596,7 +622,7 @@ function handleLeaderboard(level) {
 function handleStudentHistory(phone) {
   const cleanPhone = String(phone).trim().replace(/\D/g, '');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let subSheet = ss.getSheetByName(SHEET_SUBMISSIONS);
+  let subSheet = getSubmissionsSheet(ss);
   if (!subSheet) {
     return jsonResponse({ status: 'success', history: [] });
   }

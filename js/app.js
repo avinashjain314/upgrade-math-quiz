@@ -38,7 +38,19 @@ const App = {
     if (!user) {
       this.switchView('auth');
     } else {
-      this.switchView('home');
+      // User is remembered! Stay logged into their account
+      const status = String(user.accessStatus || '').toUpperCase().trim();
+      if (status === 'ACTIVE' || Auth.isAdmin || user.isAdmin) {
+        this.switchView('home');
+      } else if (status === 'PENDING_APPROVAL') {
+        this.switchView('home');
+        this.openPaymentModal(user, true);
+      } else if (status === 'NO_ACCESS' || status === 'NO ACCESS') {
+        this.switchView('home');
+        this.openPaymentModal(user, false);
+      } else {
+        this.switchView('home');
+      }
     }
 
     this.renderHeaderUser();
@@ -53,8 +65,14 @@ const App = {
       if (el) {
         if (v === viewName) {
           el.classList.remove('hidden');
+          if (v === 'auth') {
+            el.classList.add('flex');
+          }
         } else {
           el.classList.add('hidden');
+          if (v === 'auth') {
+            el.classList.remove('flex');
+          }
         }
       }
     });
@@ -905,6 +923,20 @@ const App = {
   },
 
   closePaymentModal() {
+    this.stopApprovalPolling();
+    const modal = document.getElementById('payment-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+    // Do NOT wipe out student session! Keep user logged in.
+    const user = Auth.getCurrentUser();
+    if (user && user.accessStatus === 'ACTIVE') {
+      this.switchView('home');
+    }
+  },
+
+  logout() {
     this.stopApprovalPolling();
     const modal = document.getElementById('payment-modal');
     if (modal) {

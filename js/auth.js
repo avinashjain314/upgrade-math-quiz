@@ -23,14 +23,43 @@ const Auth = {
     return this.currentUser;
   },
 
-  // Current program day (1 to 100). Default is Day 1 or configured in settings
+  // Program Start Date: Day 1 was Nov 12, 2026; Day 2 is Nov 13, 2026 (Today); etc.
+  PROGRAM_START_DATE: '2026-11-12',
+
+  // Current program day (1 to 100). Advances automatically each midnight IST!
   getCurrentProgramDay() {
-    const saved = localStorage.getItem('umq_program_day');
-    return saved ? parseInt(saved, 10) : 1;
+    // If admin set a manual test override in Settings, respect it
+    const manual = localStorage.getItem('umq_program_day_manual');
+    if (manual) {
+      return parseInt(manual, 10);
+    }
+
+    try {
+      // Automatic real-time calendar advancement based on Indian Standard Time (UTC +5:30)
+      const now = new Date();
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const istNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffsetMs);
+      
+      const start = new Date(this.PROGRAM_START_DATE + 'T00:00:00+05:30');
+      const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const currentMidnight = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
+      
+      const diffMs = currentMidnight.getTime() - startMidnight.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      const calculatedDay = diffDays + 1; // Nov 12 = Day 1, Nov 13 = Day 2, etc.
+
+      return Math.max(1, Math.min(100, calculatedDay));
+    } catch (e) {
+      return 1;
+    }
   },
 
   setCurrentProgramDay(day) {
-    localStorage.setItem('umq_program_day', Math.max(1, Math.min(100, day)));
+    if (day) {
+      localStorage.setItem('umq_program_day_manual', Math.max(1, Math.min(100, day)));
+    } else {
+      localStorage.removeItem('umq_program_day_manual');
+    }
   },
 
   async login(phone) {

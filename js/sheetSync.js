@@ -61,6 +61,8 @@ const SheetSync = {
   async verifyStudent(phone) {
     const cleanPhone = String(phone).trim().replace(/\D/g, '');
     const scriptUrl = this.getScriptUrl();
+    const localUsers = this.getLocalUsers();
+    const localUser = localUsers[cleanPhone] || null;
 
     // 1. Check online Google Sheet with cache-busting timestamp
     if (scriptUrl && navigator.onLine) {
@@ -78,10 +80,23 @@ const SheetSync = {
             if (this.isCoachingStudent(cleanPhone)) {
               resData.student.accessStatus = 'ACTIVE';
             }
+            // Merge with local attempted days if any
+            if (localUser && localUser.attemptedDays) {
+              resData.student.attemptedDays = { ...localUser.attemptedDays, ...(resData.student.attemptedDays || {}) };
+            }
             this.saveLocalUser(resData.student);
             return { success: true, student: resData.student, isNew: false, fromOnline: true };
           } else {
-            // Student is definitely NOT in Google Sheet
+            // Student row not yet found in Google Sheet
+            // BUT if student already registered on this browser, DO NOT ask to register again!
+            if (localUser) {
+              if (this.isCoachingStudent(cleanPhone)) {
+                localUser.accessStatus = 'ACTIVE';
+              }
+              return { success: true, student: localUser, isNew: false, fromOnline: false };
+            }
+
+            // Coaching demo student fallback
             if (this.isCoachingStudent(cleanPhone)) {
               const coachingDemo = {
                 phone: cleanPhone,
@@ -98,6 +113,8 @@ const SheetSync = {
               this.saveLocalUser(coachingDemo);
               return { success: true, student: coachingDemo, isNew: false, fromOnline: true };
             }
+
+            // Truly a first-time new student who needs to register
             return { success: true, student: null, isNew: true, fromOnline: true };
           }
         }
@@ -106,13 +123,12 @@ const SheetSync = {
       }
     }
 
-    // 2. Offline / Local fallback (ONLY when disconnected)
-    const localUsers = this.getLocalUsers();
-    if (localUsers[cleanPhone]) {
+    // 2. Offline / Local fallback (when internet or sheet is unreachable)
+    if (localUser) {
       if (this.isCoachingStudent(cleanPhone)) {
-        localUsers[cleanPhone].accessStatus = 'ACTIVE';
+        localUser.accessStatus = 'ACTIVE';
       }
-      return { success: true, student: localUsers[cleanPhone], isNew: false, fromOnline: false };
+      return { success: true, student: localUser, isNew: false, fromOnline: false };
     }
 
     // 3. Demo coaching students fallback
@@ -235,21 +251,21 @@ const SheetSync = {
     };
 
     if (scriptUrl && navigator.onLine) {
+      // 1. Send via GET query string (100% reliable execution in Google Apps Script doGet)
       try {
-        await fetch(scriptUrl, {
+        const qs = new URLSearchParams(payload).toString();
+        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
+      } catch (getErr) {}
+
+      // 2. Also send via POST for redundancy
+      try {
+        fetch(scriptUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        try {
-          const qs = new URLSearchParams(payload).toString();
-          await fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' });
-        } catch (getErr) {
-          this.queueOfflineSubmission(payload);
-        }
-      }
+        }).catch(() => {});
+      } catch (postErr) {}
     } else {
       this.queueOfflineSubmission(payload);
     }
