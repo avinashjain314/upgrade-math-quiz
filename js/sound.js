@@ -151,8 +151,9 @@ const SoundEngine = {
   },
 
   // =============================================================
-  // PROCEDURAL SOFT FOCUS STUDY MUSIC (BGM)
-  // Generates soothing, warm ambient chord pads for deep concentration
+  // PROCEDURAL SOOTHING ZEN FOCUS CHIMES (BGM)
+  // Gentle, high-clarity crystal wind chimes tuned to 528Hz Solfeggio harmony
+  // 100% pure sine waves, zero low buzz, relaxing and soothing for kids!
   // =============================================================
 
   toggleBgm() {
@@ -172,74 +173,66 @@ const SoundEngine = {
   startBgm() {
     if (!this.enabled) return;
     this.unlock();
-    if (this.bgmInterval) return; // Already running
+    if (this.bgmInterval) return; // Already active
 
     try {
       if (!this.ctx) this.init();
       const AudioCtx = this.ctx;
       if (!AudioCtx) return;
 
-      // Master BGM gain node
+      // Master BGM gain node with ultra-soft gentle volume (0.04)
       this.bgmGainNode = AudioCtx.createGain();
-      this.bgmGainNode.gain.setValueAtTime(0.001, AudioCtx.currentTime);
-      this.bgmGainNode.gain.linearRampToValueAtTime(0.12, AudioCtx.currentTime + 2.0); // Gentle background volume
+      this.bgmGainNode.gain.setValueAtTime(0.0001, AudioCtx.currentTime);
+      this.bgmGainNode.gain.linearRampToValueAtTime(0.04, AudioCtx.currentTime + 1.5);
       this.bgmGainNode.connect(AudioCtx.destination);
 
-      // Calming ambient chord progression (432Hz harmonic tuning)
-      // Cmaj7 -> Fmaj7 -> Am7 -> Gsus4
-      const chords = [
-        [130.81, 196.00, 246.94, 329.63], // C3, G3, B3, E4 (Cmaj7)
-        [174.61, 261.63, 329.63, 440.00], // F3, C4, E4, A4 (Fmaj7)
-        [220.00, 329.63, 392.00, 523.25], // A3, E4, G4, C5 (Am7)
-        [196.00, 293.66, 392.00, 523.25]  // G3, D4, G4, C5 (Gsus4)
+      // Relaxing high-resonance pentatonic crystal chimes (pure Solfeggio 528Hz healing harmony)
+      const chimePhrases = [
+        [528.00, 660.00, 792.00, 1056.00], // C-note 528Hz Solfeggio harmony
+        [440.00, 554.37, 659.25, 880.00],  // A4 soft peaceful harmony
+        [523.25, 659.25, 783.99, 1046.50], // C5 crystal celesta
+        [392.00, 493.88, 587.33, 783.99]   // G4 serene wind chime
       ];
 
-      let chordIndex = 0;
+      let phraseIndex = 0;
 
-      const playChord = () => {
-        if (!this.bgmEnabled) return;
+      const playChime = () => {
+        if (!this.bgmEnabled || !this.ctx || !this.bgmGainNode) return;
 
-        const currentNotes = chords[chordIndex];
-        chordIndex = (chordIndex + 1) % chords.length;
+        const currentNotes = chimePhrases[phraseIndex];
+        phraseIndex = (phraseIndex + 1) % chimePhrases.length;
 
-        // Low-pass filter for velvety, warm sound
-        const filter = AudioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(450, AudioCtx.currentTime);
-
-        const chordGain = AudioCtx.createGain();
-        const now = AudioCtx.currentTime;
-        chordGain.gain.setValueAtTime(0.001, now);
-        chordGain.gain.linearRampToValueAtTime(0.08, now + 1.2); // Smooth fade in
-        chordGain.gain.setValueAtTime(0.08, now + 3.0);
-        chordGain.gain.linearRampToValueAtTime(0.001, now + 4.8); // Smooth crossfade out
-
-        filter.connect(chordGain);
-        chordGain.connect(this.bgmGainNode);
-
-        const activeOscs = [];
+        // Play gentle staggered wind chime notes
         currentNotes.forEach((freq, idx) => {
+          const noteTime = AudioCtx.currentTime + (idx * 0.22);
           const osc = AudioCtx.createOscillator();
-          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
-          osc.frequency.setValueAtTime(freq, now);
-          osc.connect(filter);
-          osc.start(now);
-          osc.stop(now + 5.0);
-          activeOscs.push(osc);
-        });
+          const noteGain = AudioCtx.createGain();
 
-        setTimeout(() => {
-          activeOscs.forEach(o => {
-            try { o.disconnect(); } catch (e) {}
-          });
-        }, 5200);
+          osc.type = 'sine'; // PURE soft sine wave (zero harsh buzzing)
+          osc.frequency.setValueAtTime(freq, noteTime);
+
+          // Soft bell envelope: gentle attack, long tranquil decay
+          noteGain.gain.setValueAtTime(0.0001, noteTime);
+          noteGain.gain.linearRampToValueAtTime(0.06 / (idx + 1), noteTime + 0.15);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 3.8);
+
+          osc.connect(noteGain);
+          noteGain.connect(this.bgmGainNode);
+
+          osc.start(noteTime);
+          osc.stop(noteTime + 4.0);
+
+          setTimeout(() => {
+            try { osc.disconnect(); noteGain.disconnect(); } catch (e) {}
+          }, 4200 + (idx * 220));
+        });
       };
 
-      playChord();
-      this.bgmInterval = setInterval(playChord, 4500);
+      playChime();
+      this.bgmInterval = setInterval(playChime, 8500); // Relaxed 8.5s peaceful cadence
       this.updateBgmUi();
     } catch (e) {
-      console.warn('Could not start procedural BGM:', e);
+      console.warn('Could not start soothing BGM:', e);
     }
   },
 
@@ -269,11 +262,11 @@ const SoundEngine = {
       if (this.bgmEnabled) {
         btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-400');
         btn.classList.remove('bg-slate-900', 'text-slate-300');
-        btn.innerHTML = '<span>🎵</span> <span>Focus Music: ON</span>';
+        btn.innerHTML = '<span>🎵</span> <span>Zen Bells: ON</span>';
       } else {
         btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-400');
         btn.classList.add('bg-slate-900', 'text-slate-300');
-        btn.innerHTML = '<span>🎵</span> <span>Focus Music: OFF</span>';
+        btn.innerHTML = '<span>🎵</span> <span>Zen Bells: OFF</span>';
       }
     });
   }

@@ -68,7 +68,7 @@ const SheetSync = {
     if (scriptUrl && navigator.onLine) {
       try {
         const cacheBuster = Date.now();
-        const response = await fetch(`${scriptUrl}?action=verify&phone=${encodeURIComponent(cleanPhone)}&_nocache=${cacheBuster}`, {
+        const response = await fetch(`${scriptUrl}?action=verify&phone=${encodeURIComponent(cleanPhone)}&autoRegister=true&_nocache=${cacheBuster}`, {
           method: 'GET',
           mode: 'cors',
           cache: 'no-store'
@@ -85,7 +85,10 @@ const SheetSync = {
               resData.student.attemptedDays = { ...localUser.attemptedDays, ...(resData.student.attemptedDays || {}) };
             }
             this.saveLocalUser(resData.student);
-            return { success: true, student: resData.student, isNew: false, fromOnline: true };
+            
+            // Check if student was freshly auto-registered or hasn't provided a real name yet
+            const isFreshStudent = !!resData.isNew || (!localUser && (!resData.student.name || resData.student.name.startsWith('Student (')));
+            return { success: true, student: resData.student, isNew: isFreshStudent, fromOnline: true };
           } else {
             // Student row not yet found in Google Sheet
             // BUT if student already registered on this browser, DO NOT ask to register again!
@@ -182,9 +185,28 @@ const SheetSync = {
     };
     this.saveLocalUser(localStudent);
 
-    // Sync with Google Sheet if configured (both POST and GET fallback)
+    // Sync with Google Sheet if configured (both GET and POST with await)
     const scriptUrl = this.getScriptUrl();
     if (scriptUrl && navigator.onLine) {
+      try {
+        const qs = new URLSearchParams(payload).toString();
+        const response = await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
+          method: 'GET',
+          mode: 'cors'
+        });
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.student) {
+            localStudent.accessStatus = resData.student.accessStatus || localStudent.accessStatus;
+            localStudent.adminUnlockOverride = resData.student.adminUnlockOverride || localStudent.adminUnlockOverride;
+            this.saveLocalUser(localStudent);
+          }
+        }
+      } catch (e) {
+        console.warn('GET register error:', e);
+      }
+
+      // Also fire POST for redundancy
       try {
         fetch(scriptUrl, {
           method: 'POST',
@@ -193,11 +215,6 @@ const SheetSync = {
           body: JSON.stringify(payload)
         }).catch(() => {});
       } catch (err) {}
-
-      try {
-        const qs = new URLSearchParams(payload).toString();
-        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
-      } catch (e) {}
     }
 
     return { success: true, student: localStudent };
@@ -298,17 +315,20 @@ const SheetSync = {
     const scriptUrl = this.getScriptUrl();
     if (scriptUrl && navigator.onLine) {
       try {
+        const qs = new URLSearchParams(payload).toString();
+        await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
+          method: 'GET',
+          mode: 'cors'
+        });
+      } catch (e) {}
+
+      try {
         fetch(scriptUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }).catch(() => {});
-      } catch (e) {}
-
-      try {
-        const qs = new URLSearchParams(payload).toString();
-        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
       } catch (e) {}
     }
 

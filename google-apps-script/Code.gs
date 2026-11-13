@@ -34,13 +34,21 @@ function isCoachingStudent(phone) {
 
 // Resilient Sheet Tab Getter (supports 'Students_Access', 'Students', or sheet 0)
 function getStudentSheet(ss) {
-  return getStudentSheet(ss) || ss.getSheetByName('Students') || ss.getSheets()[0];
+  return ss.getSheetByName(SHEET_STUDENTS) 
+      || ss.getSheetByName('Students') 
+      || ss.getSheetByName('Students_Access') 
+      || ss.getSheetByName('Sheet1') 
+      || ss.getSheets()[0];
 }
 
 function getSubmissionsSheet(ss) {
-  var s = getSubmissionsSheet(ss);
+  var s = ss.getSheetByName(SHEET_SUBMISSIONS) || ss.getSheetByName('Submissions') || ss.getSheetByName('Quiz_Submissions');
   if (!s) {
-    s = ss.insertSheet(SHEET_SUBMISSIONS);
+    try {
+      s = ss.insertSheet(SHEET_SUBMISSIONS);
+    } catch (e) {
+      s = ss.getSheets()[0];
+    }
   }
   return s;
 }
@@ -189,7 +197,7 @@ function doGet(e) {
   
   try {
     if (action === 'verify') {
-      return handleVerify(params.phone);
+      return handleVerify(params.phone, params.autoRegister);
     } else if (action === 'leaderboard') {
       return handleLeaderboard(params.level);
     } else if (action === 'student_history') {
@@ -247,12 +255,16 @@ function doPost(e) {
 // ACTION HANDLERS
 // -------------------------------------------------------------
 
-function handleVerify(phone) {
+function handleVerify(phone, autoRegister) {
   if (!phone) {
     return jsonResponse({ status: 'error', message: 'Phone number is required.' });
   }
   
   const cleanPhone = String(phone).trim().replace(/\D/g, '');
+  if (cleanPhone.length < 10) {
+    return jsonResponse({ status: 'error', message: 'Valid 10-digit mobile number required.' });
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = getStudentSheet(ss);
   if (!sheet) {
@@ -301,10 +313,29 @@ function handleVerify(phone) {
           totalScore: Number(data[i][5]) || 0,
           currentStreak: Number(data[i][6]) || 0,
           quizzesCompleted: Number(data[i][7]) || 0,
+          registrationDate: data[i][8] || new Date().toISOString(),
           attemptedDays: attemptedDays,
           lastActiveDate: data[i][9]
         }
       });
+    }
+  }
+
+  // If new phone number and autoRegister is requested (or true by default):
+  // Instantly create the student row in Google Sheet so Avinash Sir sees it right away!
+  if (autoRegister === 'true' || autoRegister === true || autoRegister === '1' || autoRegister === undefined) {
+    const regRes = handleRegister({
+      phone: cleanPhone,
+      name: 'Student (' + cleanPhone.slice(-4) + ')',
+      level: 'Junior (Grade 1-4)'
+    });
+    // Add isNew flag so frontend knows to prompt student for their actual full name
+    try {
+      const regObj = JSON.parse(regRes.getContent());
+      regObj.isNew = true;
+      return jsonResponse(regObj);
+    } catch(e) {
+      return regRes;
     }
   }
   
@@ -317,14 +348,14 @@ function handleVerify(phone) {
 
 function handleRegister(data) {
   const phone = String(data.phone || '').trim().replace(/\D/g, '');
-  const name = String(data.name || '').trim();
+  let name = String(data.name || '').trim();
   const level = data.level || 'Junior (Grade 1-4)';
   
   if (!phone || phone.length < 10) {
     return jsonResponse({ status: 'error', message: 'Valid 10-digit mobile number required.' });
   }
   if (!name) {
-    return jsonResponse({ status: 'error', message: 'Student name is required.' });
+    name = 'Student (' + phone.slice(-4) + ')';
   }
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -353,6 +384,7 @@ function handleRegister(data) {
           totalScore: Number(existingData[i][5]) || 0,
           currentStreak: Number(existingData[i][6]) || 0,
           quizzesCompleted: Number(existingData[i][7]) || 0,
+          registrationDate: existingData[i][8] || new Date().toISOString(),
           attemptedDays: {}
         }
       });
@@ -395,6 +427,7 @@ function handleRegister(data) {
       totalScore: 0,
       currentStreak: 0,
       quizzesCompleted: 0,
+      registrationDate: now,
       attemptedDays: {}
     }
   });

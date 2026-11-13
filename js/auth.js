@@ -23,30 +23,49 @@ const Auth = {
     return this.currentUser;
   },
 
-  // Program Start Date: Day 1 was Nov 12, 2026; Day 2 is Nov 13, 2026 (Today); etc.
-  PROGRAM_START_DATE: '2026-11-12',
-
-  // Current program day (1 to 100). Advances automatically each midnight IST!
-  getCurrentProgramDay() {
+  // Current program day (1 to 100) personalized to each student's journey from their enrollment date!
+  getCurrentProgramDay(user = null) {
     // If admin set a manual test override in Settings, respect it
     const manual = localStorage.getItem('umq_program_day_manual');
     if (manual) {
       return parseInt(manual, 10);
     }
 
+    const student = user || this.currentUser;
+    if (!student) return 1;
+
     try {
-      // Automatic real-time calendar advancement based on Indian Standard Time (UTC +5:30)
-      const now = new Date();
+      // 1. Determine student's start/registration date in IST
+      let regDateStr = student.registrationDate;
+      const cleanPhone = String(student.phone || '').replace(/\D/g, '');
+
+      if (!regDateStr) {
+        // Avinash Sir's account started on Nov 12, 2026
+        if (cleanPhone === '9179799355' || cleanPhone === '9999999999') {
+          regDateStr = '2026-11-12T00:00:00+05:30';
+        } else {
+          // If no registration date recorded, set to today so they start on Day 1
+          regDateStr = new Date().toISOString();
+          student.registrationDate = regDateStr;
+          SheetSync.saveLocalUser(student);
+        }
+      }
+
+      // Convert registration date to IST midnight
+      const regDate = new Date(regDateStr);
       const istOffsetMs = 5.5 * 60 * 60 * 1000;
-      const istNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffsetMs);
-      
-      const start = new Date(this.PROGRAM_START_DATE + 'T00:00:00+05:30');
-      const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const currentMidnight = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
-      
-      const diffMs = currentMidnight.getTime() - startMidnight.getTime();
-      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-      const calculatedDay = diffDays + 1; // Nov 12 = Day 1, Nov 13 = Day 2, etc.
+      const regIst = new Date(regDate.getTime() + (regDate.getTimezoneOffset() * 60000) + istOffsetMs);
+      const regMidnight = new Date(regIst.getFullYear(), regIst.getMonth(), regIst.getDate());
+
+      // Current date in IST midnight
+      const now = new Date();
+      const nowIst = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffsetMs);
+      const currentMidnight = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate());
+
+      // Difference in calendar days
+      const diffMs = currentMidnight.getTime() - regMidnight.getTime();
+      const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      const calculatedDay = diffDays + 1; // Joined today -> Day 1! Joined yesterday -> Day 2!
 
       return Math.max(1, Math.min(100, calculatedDay));
     } catch (e) {
@@ -89,6 +108,9 @@ const Auth = {
     }
 
     const res = await SheetSync.verifyStudent(clean);
+    if (res.isNew) {
+      return { success: true, isNew: true, phone: clean, student: res.student };
+    }
     if (res.student) {
       const status = String(res.student.accessStatus || '').toUpperCase().trim();
       

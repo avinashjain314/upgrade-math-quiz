@@ -79,10 +79,10 @@ const App = {
 
     document.querySelectorAll('.nav-btn').forEach(btn => {
       if (btn.dataset.view === viewName) {
-        btn.classList.add('text-indigo-400');
+        btn.classList.add('text-indigo-400', 'bg-indigo-500/20');
         btn.classList.remove('text-slate-400');
       } else {
-        btn.classList.remove('text-indigo-400');
+        btn.classList.remove('text-indigo-400', 'bg-indigo-500/20');
         btn.classList.add('text-slate-400');
       }
     });
@@ -127,62 +127,102 @@ const App = {
   // -------------------------------------------------------------
   renderHome() {
     const user = Auth.getCurrentUser();
-    if (!user) return;
-
     this.renderHeaderUser();
 
     const today = Auth.getCurrentProgramDay();
-    const isTodayAttempted = Auth.isDayAttempted(today);
-    const titleInfo = getTitleForScore(user.totalScore || 0);
+    const isTodayAttempted = user ? Auth.isDayAttempted(today) : false;
+    const titleInfo = getTitleForScore(user ? (user.totalScore || 0) : 0);
+    const wisdom = getDailyWisdom(today);
+    const growth = (typeof getHolisticDayGrowth === 'function') ? getHolisticDayGrowth(today) : null;
 
     // Welcome Card
     const welcomeContainer = document.getElementById('home-welcome-card');
     if (welcomeContainer) {
-      welcomeContainer.innerHTML = `
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/90 via-slate-900 to-slate-950 p-6 border border-indigo-500/30 shadow-2xl">
-          <div class="absolute -right-6 -bottom-6 w-36 h-36 bg-indigo-500/10 rounded-full blur-2xl"></div>
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-2xl">${titleInfo.icon}</span>
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  ${user.level}
-                </span>
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  ${titleInfo.title}
-                </span>
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  📅 Day ${today} of 100
-                </span>
-              </div>
-              <h2 class="text-2xl font-black text-white mt-2">Welcome, ${user.name}! 👋</h2>
-              <p class="text-sm text-slate-300 mt-1 max-w-lg">
-                Daily discipline builds mathematical genius! Exactly 1 quiz per day.
-              </p>
-            </div>
-            <div class="flex gap-3">
-              <div class="bg-slate-800/80 border border-slate-700/80 px-4 py-2.5 rounded-2xl text-center">
-                <p class="text-[11px] text-slate-400">Streak</p>
-                <p class="text-xl font-black text-amber-400 flex items-center justify-center gap-1">
-                  <span>🔥</span> ${user.currentStreak || 0} <span class="text-xs text-slate-400 font-normal">days</span>
+      if (user) {
+        welcomeContainer.innerHTML = `
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/90 via-slate-900 to-slate-950 p-6 border border-indigo-500/30 shadow-2xl">
+            <div class="absolute -right-6 -bottom-6 w-36 h-36 bg-indigo-500/10 rounded-full blur-2xl"></div>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-2xl">${titleInfo.icon}</span>
+                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    ${user.level}
+                  </span>
+                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    ${titleInfo.title}
+                  </span>
+                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    📅 Day ${today} of 100
+                  </span>
+                </div>
+                <h2 class="text-2xl font-black text-white mt-2">Welcome, ${user.name}! 👋</h2>
+                <p class="text-sm text-slate-300 mt-1 max-w-lg">
+                  Daily discipline builds mathematical genius! Exactly 1 quiz per day on your personalized 100-day journey.
                 </p>
               </div>
-              <div class="bg-slate-800/80 border border-slate-700/80 px-4 py-2.5 rounded-2xl text-center">
-                <p class="text-[11px] text-slate-400">Total Score</p>
-                <p class="text-xl font-black text-indigo-400">
-                  ${(user.totalScore || 0).toLocaleString()} <span class="text-xs text-slate-400 font-normal">pts</span>
-                </p>
+              <div class="flex gap-3">
+                <div class="bg-slate-800/80 border border-slate-700/80 px-4 py-2.5 rounded-2xl text-center">
+                  <p class="text-[11px] text-slate-400">Streak</p>
+                  <p class="text-xl font-black text-amber-400 flex items-center justify-center gap-1">
+                    <span>🔥</span> ${user.currentStreak || 0} <span class="text-xs text-slate-400 font-normal">days</span>
+                  </p>
+                </div>
+                <div class="bg-slate-800/80 border border-slate-700/80 px-4 py-2.5 rounded-2xl text-center">
+                  <p class="text-[11px] text-slate-400">Total Score</p>
+                  <p class="text-xl font-black text-indigo-400">
+                    ${(user.totalScore || 0).toLocaleString()} <span class="text-xs text-slate-400 font-normal">pts</span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        welcomeContainer.innerHTML = `
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-950 p-6 border border-indigo-500/40 shadow-2xl">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div class="space-y-2 text-center sm:text-left">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span>🚀</span> 100-Day Mathematical & Mindset Transformation
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black text-white">Upgrade Math Quiz by Avinash Sir 🎯</h2>
+                <p class="text-sm text-slate-300 max-w-lg">
+                  Every child starts on Day 1 on their enrollment date! Conquering 20 daily questions builds razor-sharp mental speed, English vocabulary, and unbreakable discipline.
+                </p>
+              </div>
+              <button onclick="App.switchView('auth')" class="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/30 transition transform hover:scale-105 active:scale-95 text-base whitespace-nowrap">
+                👉 Enter Mobile to Start Day 1
+              </button>
+            </div>
+          </div>
+        `;
+      }
     }
 
     // Today's Quiz Action Card
     const todayQuizContainer = document.getElementById('home-today-quiz-card');
     if (todayQuizContainer) {
-      if (isTodayAttempted) {
+      if (!user) {
+        todayQuizContainer.innerHTML = `
+          <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="space-y-1.5 text-center md:text-left">
+              <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-xs font-bold">
+                <span>⚡</span> Day 1 of 100 (Your Starting Challenge)
+              </div>
+              <h3 class="text-2xl font-black text-white">Day 1 Homework Quiz Ready!</h3>
+              <p class="text-sm text-slate-300 max-w-md">
+                20 Questions · 5 Easy (10pts) · 7 Medium (20pts) · 8 Hard (30pts) · Auto-advances in 3s · Only 1 Attempt Allowed!
+              </p>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="App.switchView('auth')" class="px-8 py-4 bg-white text-indigo-950 hover:bg-slate-100 font-black rounded-2xl shadow-xl transition transform hover:scale-105 active:scale-95 text-base">
+                <span>🚀 Login & Take Day 1 Quiz</span>
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (isTodayAttempted) {
         todayQuizContainer.innerHTML = `
           <div class="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="space-y-1.5 text-center md:text-left">
@@ -226,30 +266,119 @@ const App = {
       }
     }
 
-    // Vedic Math Trick & Holistic Focus Tip of the Day
+    // AVINASH SIR'S HOLISTIC GROWTH HUB FOR KIDS (Vedic Math, Vocabulary, Facts, Thoughts, Focus)
     const trickContainer = document.getElementById('home-daily-trick-card');
     if (trickContainer) {
-      const wisdom = getDailyWisdom(today);
+      const wordHtml = growth ? `
+        <!-- Word of the Day -->
+        <div class="bg-slate-950/80 border border-cyan-500/30 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>📖</span> Word of the Day
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold">
+                ${growth.wordOfTheDay.category}
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2 mt-2">
+              <h4 class="text-xl font-black text-white tracking-tight">${growth.wordOfTheDay.word}</h4>
+              <span class="text-xs font-mono text-cyan-300/80">${growth.wordOfTheDay.phonetic}</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+              <strong class="text-cyan-200">Meaning:</strong> ${growth.wordOfTheDay.meaning}
+            </p>
+          </div>
+          <div class="text-xs italic text-slate-400 bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+            "${growth.wordOfTheDay.example}"
+          </div>
+        </div>
+
+        <!-- Mind-Blowing Science & Math Fact -->
+        <div class="bg-slate-950/80 border border-emerald-500/30 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>${growth.mindFact.icon}</span> Mind-Blowing Fact
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold">
+                ${growth.mindFact.category}
+              </span>
+            </div>
+            <h4 class="text-base font-black text-white mt-2">${growth.mindFact.title}</h4>
+            <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+              ${growth.mindFact.fact}
+            </p>
+          </div>
+          <div class="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+            <span>✨</span> Expand your curiosity every day!
+          </div>
+        </div>
+
+        <!-- Powerful Character Thought -->
+        <div class="bg-slate-950/80 border border-purple-500/30 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔥</span> Powerful Thought of the Day
+            </span>
+            <blockquote class="text-xs italic text-purple-100 mt-3 leading-relaxed border-l-2 border-purple-500 pl-3">
+              "${growth.powerfulThought.quote}"
+            </blockquote>
+            <p class="text-xs font-bold text-amber-300 mt-2 text-right">
+              — ${growth.powerfulThought.author}
+            </p>
+          </div>
+          <div class="text-[11px] text-slate-400 bg-slate-900/70 p-2.5 rounded-xl border border-slate-800">
+            <strong class="text-purple-300">Life Lesson:</strong> ${growth.powerfulThought.lesson}
+          </div>
+        </div>
+      ` : '';
+
       trickContainer.innerHTML = `
-        <div class="rounded-3xl bg-slate-900/90 border border-amber-500/30 p-6 shadow-xl space-y-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
-              💡
+        <div class="rounded-3xl bg-slate-900/90 border border-indigo-500/30 p-6 sm:p-8 shadow-2xl space-y-6">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-indigo-600 to-purple-600 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/30">
+                🌟
+              </div>
+              <div>
+                <h3 class="text-xl font-black text-white">Avinash Sir's Holistic Growth Hub</h3>
+                <p class="text-xs text-indigo-400 font-semibold">Vedic Math · English Vocabulary · Amazing Science Facts · Character Thoughts</p>
+              </div>
             </div>
+            <span class="text-xs font-bold px-3 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+              📅 Day ${today} Challenge Edition
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Vedic Math Shortcut Card -->
+            <div class="bg-slate-950/80 border border-amber-500/30 rounded-2xl p-5 space-y-3 shadow-lg flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                  <span>💡</span> Vedic Math Speed Hack
+                </div>
+                <h4 class="text-base font-black text-white mt-2">${wisdom.title}</h4>
+                <p class="text-xs text-slate-300 mt-2 font-mono bg-slate-900/90 p-3 rounded-xl border border-slate-800 leading-relaxed">
+                  ${wisdom.trick}
+                </p>
+              </div>
+              <p class="text-xs italic text-amber-300/90 text-right">
+                "${wisdom.quote}"
+              </p>
+            </div>
+
+            ${wordHtml}
+          </div>
+
+          <!-- Focus & Memory Health Tip -->
+          <div class="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200 flex items-start sm:items-center gap-3">
+            <span class="text-2xl shrink-0">🧘</span>
             <div>
-              <p class="text-xs font-bold uppercase tracking-wider text-amber-400">Avinash Sir's Sharp Mental Math Shortcut</p>
-              <h4 class="text-lg font-bold text-white">${wisdom.title}</h4>
+              <strong class="text-indigo-300">Avinash Sir's Brain Focus & Memory Tip:</strong>
+              <p class="mt-0.5 text-slate-300 leading-relaxed">${wisdom.focusTip}</p>
             </div>
           </div>
-          <p class="text-sm text-slate-300 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 font-mono text-xs leading-relaxed">
-            ${wisdom.trick}
-          </p>
-          <div class="p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200">
-            ${wisdom.focusTip}
-          </div>
-          <p class="text-xs italic text-amber-300/90 text-right">
-            "${wisdom.quote}"
-          </p>
         </div>
       `;
     }
@@ -260,8 +389,6 @@ const App = {
   // -------------------------------------------------------------
   renderRoadmap() {
     const user = Auth.getCurrentUser();
-    if (!user) return;
-
     const container = document.getElementById('roadmap-grid');
     if (!container) return;
 
@@ -269,7 +396,7 @@ const App = {
     let html = '';
 
     for (let d = 1; d <= 100; d++) {
-      const status = Auth.getDayStatus(d);
+      const status = user ? Auth.getDayStatus(d) : { state: d === 1 ? 'today' : 'future_locked', label: d === 1 ? 'Start Here' : `Day ${d}` };
       let cardClass = '';
       let badgeHtml = '';
       let actionOnClick = '';
@@ -283,8 +410,8 @@ const App = {
       } else if (status.state === 'today') {
         cardClass = 'bg-gradient-to-br from-indigo-900/80 to-slate-900 border-indigo-500 ring-2 ring-indigo-500/30 shadow-lg shadow-indigo-500/20 animate-pulse';
         badgeHtml = `<span class="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold">Today</span>`;
-        actionOnClick = `App.openQuizSetup(${d})`;
-        subtext = '⚡ 20 Questions (Active)';
+        actionOnClick = user ? `App.openQuizSetup(${d})` : `App.switchView('auth')`;
+        subtext = user ? '⚡ 20 Questions (Active)' : '👉 Click to Login & Play';
       } else if (status.state === 'admin_unlocked') {
         cardClass = 'bg-slate-900/90 border-amber-500/50 hover:border-amber-400 ring-1 ring-amber-500/30';
         badgeHtml = `<span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">🔓 Unlocked</span>`;
@@ -1125,7 +1252,19 @@ const App = {
       authForm.onsubmit = async (e) => {
         e.preventDefault();
         const phone = document.getElementById('auth-phone').value;
+        const submitBtn = authForm.querySelector('button[type="submit"]');
+        const oldHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span>Connecting to Google Sheet...</span>';
+        }
+
         const res = await Auth.login(phone);
+
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = oldHtml;
+        }
 
         if (!res.success) {
           alert(res.message);
@@ -1152,7 +1291,19 @@ const App = {
         const name = document.getElementById('reg-name').value;
         const level = document.querySelector('input[name="reg-level"]:checked').value;
 
+        const regBtn = regForm.querySelector('button[type="submit"]');
+        const oldRegHtml = regBtn ? regBtn.innerHTML : '';
+        if (regBtn) {
+          regBtn.disabled = true;
+          regBtn.innerHTML = '<span>Saving to Google Sheet...</span>';
+        }
+
         const res = await Auth.completeRegistration(phone, name, level);
+
+        if (regBtn) {
+          regBtn.disabled = false;
+          regBtn.innerHTML = oldRegHtml;
+        }
         if (res.success) {
           document.getElementById('reg-modal').classList.add('hidden');
           document.getElementById('reg-modal').classList.remove('flex');
