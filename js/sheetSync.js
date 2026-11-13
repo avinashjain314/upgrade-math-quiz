@@ -41,16 +41,39 @@ const SheetSync = {
   },
 
   // Whitelist of Avinash Sir's Coaching Students (Always 100% Free Lifetime Access)
+  // Fully supports Indian (10-digit) and International (Australia +61, New Zealand +64, US, etc.) formats
   COACHING_STUDENTS: [
-    '9876543210', // Demo Student (Sara)
-    '9876543211', // Demo Student (Aarav)
-    '9999999999'  // Avinash Sir (Admin)
-    // Avinash Sir can add his 8-10 coaching student numbers here anytime
+    '8979317487',      // Student 1 (India)
+    '8582047578',      // Student 2 (India)
+    '61469606997',     // Student 3 (Australia)
+    '64221910852',     // Student 4 (New Zealand)
+    '64211489307',     // Student 5 (New Zealand)
+    '6195393482',      // Student 6 (International)
+    '642041151177',    // Student 7 (New Zealand)
+    '9179799355',      // Avinash Sir (Admin)
+    '9999999999',      // Admin Passcode Demo
+    '9876543210',      // Demo Student (Sara)
+    '9876543211'       // Demo Student (Aarav)
   ],
 
   isCoachingStudent(phone) {
-    const clean = String(phone || '').trim().replace(/\D/g, '');
-    return this.COACHING_STUDENTS.includes(clean);
+    if (!phone) return false;
+    const clean = String(phone).replace(/\D/g, '');
+    if (!clean || clean.length < 8) return false;
+
+    return this.COACHING_STUDENTS.some(p => {
+      const cleanP = String(p).replace(/\D/g, '');
+      if (clean === cleanP) return true;
+      if (clean.length >= 8 && cleanP.length >= 8) {
+        if (clean.endsWith(cleanP) || cleanP.endsWith(clean)) return true;
+        const localClean = clean.replace(/^0+/, '');
+        const localCleanP = cleanP.replace(/^0+/, '');
+        if (localClean.length >= 8 && localCleanP.length >= 8) {
+          if (cleanP.endsWith(localClean) || clean.endsWith(localCleanP)) return true;
+        }
+      }
+      return false;
+    });
   },
 
   getPaymentConfig() {
@@ -158,8 +181,8 @@ const SheetSync = {
   // 2. REGISTER NEW STUDENT
   async registerStudent(studentData) {
     const cleanPhone = String(studentData.phone).trim().replace(/\D/g, '');
-    const isDemo = (cleanPhone === '9876543210' || cleanPhone === '9876543211' || cleanPhone === '9999999999');
-    const initialStatus = isDemo ? 'ACTIVE' : 'NO_ACCESS';
+    const isCoaching = this.isCoachingStudent(cleanPhone);
+    const initialStatus = isCoaching ? 'ACTIVE' : 'NO_ACCESS';
 
     const payload = {
       action: 'register',

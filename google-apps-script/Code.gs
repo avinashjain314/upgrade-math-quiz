@@ -20,16 +20,42 @@ const SHEET_STUDENTS = 'Students_Access';
 const SHEET_SUBMISSIONS = 'Quiz_Submissions';
 
 // Whitelist of Avinash Sir's Coaching Students (Always 100% Free Lifetime Access)
+// Fully supports Indian (10-digit) and International (Australia +61, New Zealand +64, US, etc.) formats
 const COACHING_STUDENTS = [
-  '9876543210', // Demo Student (Sara)
-  '9876543211', // Demo Student (Aarav)
-  '9999999999'  // Avinash Sir (Admin)
-  // Avinash Sir can add additional numbers here
+  '8979317487',      // Student 1 (India)
+  '8582047578',      // Student 2 (India)
+  '61469606997',     // Student 3 (Australia)
+  '64221910852',     // Student 4 (New Zealand)
+  '64211489307',     // Student 5 (New Zealand)
+  '6195393482',      // Student 6 (International)
+  '642041151177',    // Student 7 (New Zealand)
+  '9179799355',      // Avinash Sir (Admin)
+  '9999999999',      // Admin Passcode Demo
+  '9876543210',      // Demo Student (Sara)
+  '9876543211'       // Demo Student (Aarav)
 ];
 
 function isCoachingStudent(phone) {
-  var clean = String(phone || '').trim().replace(/\D/g, '');
-  return COACHING_STUDENTS.indexOf(clean) !== -1;
+  if (!phone) return false;
+  var clean = String(phone).replace(/\D/g, '');
+  if (!clean || clean.length < 8) return false;
+
+  for (var i = 0; i < COACHING_STUDENTS.length; i++) {
+    var p = COACHING_STUDENTS[i].replace(/\D/g, '');
+    if (clean === p) return true;
+    if (clean.length >= 8 && p.length >= 8) {
+      if (clean.indexOf(p) !== -1 || p.indexOf(clean) !== -1) return true;
+      // Match without leading zeros (e.g. 0469606997 vs 61469606997)
+      var localClean = clean.replace(/^0+/, '');
+      var localP = p.replace(/^0+/, '');
+      if (localClean.length >= 8 && localP.length >= 8) {
+        if (p.slice(-localClean.length) === localClean || clean.slice(-localP.length) === localP) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // Resilient Sheet Tab Getter (supports 'Students_Access', 'Students', or sheet 0)
@@ -261,8 +287,8 @@ function handleVerify(phone, autoRegister) {
   }
   
   const cleanPhone = String(phone).trim().replace(/\D/g, '');
-  if (cleanPhone.length < 10) {
-    return jsonResponse({ status: 'error', message: 'Valid 10-digit mobile number required.' });
+  if (cleanPhone.length < 8) {
+    return jsonResponse({ status: 'error', message: 'Valid mobile number required.' });
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -351,8 +377,8 @@ function handleRegister(data) {
   let name = String(data.name || '').trim();
   const level = data.level || 'Junior (Grade 1-4)';
   
-  if (!phone || phone.length < 10) {
-    return jsonResponse({ status: 'error', message: 'Valid 10-digit mobile number required.' });
+  if (!phone || phone.length < 8) {
+    return jsonResponse({ status: 'error', message: 'Valid mobile number required.' });
   }
   if (!name) {
     name = 'Student (' + phone.slice(-4) + ')';
@@ -368,9 +394,12 @@ function handleRegister(data) {
   const existingData = sheet.getDataRange().getValues();
   for (let i = 1; i < existingData.length; i++) {
     const rowPhone = String(existingData[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === phone) {
+    if (rowPhone === phone || (rowPhone.length >= 8 && phone.length >= 8 && (rowPhone.slice(-8) === phone.slice(-8)))) {
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(level);
+      if (isCoachingStudent(phone)) {
+        sheet.getRange(i + 1, 4).setValue('ACTIVE');
+      }
       SpreadsheetApp.flush();
       return jsonResponse({
         status: 'success',

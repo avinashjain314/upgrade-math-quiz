@@ -83,8 +83,8 @@ const Auth = {
 
   async login(phone) {
     const clean = String(phone).replace(/\D/g, '');
-    if (clean.length < 10) {
-      return { success: false, message: 'Please enter a valid 10-digit mobile number.' };
+    if (clean.length < 8) {
+      return { success: false, message: 'Please enter a valid mobile number.' };
     }
 
     // Admin passcode for Avinash Sir
@@ -107,9 +107,13 @@ const Auth = {
       return { success: true, isNew: false, student: adminUser, isAdmin: true };
     }
 
+    const isCoaching = SheetSync.isCoachingStudent(clean);
     const res = await SheetSync.verifyStudent(clean);
-    if (res.isNew) {
-      return { success: true, isNew: true, phone: clean, student: res.student };
+
+    // If coaching student without real name filled, open registration modal
+    const isNew = res.isNew || (!res.student || !res.student.name || res.student.name.startsWith('Student ('));
+    if (isNew) {
+      return { success: true, isNew: true, isCoaching: isCoaching, phone: clean, student: res.student };
     }
     if (res.student) {
       const status = String(res.student.accessStatus || '').toUpperCase().trim();

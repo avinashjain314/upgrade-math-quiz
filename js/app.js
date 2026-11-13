@@ -1273,6 +1273,16 @@ const App = {
 
         if (res.isNew) {
           document.getElementById('reg-phone-display').innerText = res.phone;
+          const coachingBanner = document.getElementById('reg-coaching-banner');
+          if (coachingBanner) {
+            if (res.isCoaching || SheetSync.isCoachingStudent(res.phone)) {
+              coachingBanner.classList.remove('hidden');
+              coachingBanner.classList.add('flex');
+            } else {
+              coachingBanner.classList.add('hidden');
+              coachingBanner.classList.remove('flex');
+            }
+          }
           document.getElementById('reg-modal').classList.remove('hidden');
           document.getElementById('reg-modal').classList.add('flex');
         } else if (res.paymentRequired || res.pendingApproval) {

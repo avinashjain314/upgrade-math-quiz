@@ -116,9 +116,12 @@
           <div>
             <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mobile Number</label>
             <div class="relative">
-              <span class="absolute left-4 top-3.5 text-sm font-bold text-slate-500">+91</span>
-              <input type="tel" id="auth-phone" maxlength="10" placeholder="Enter 10-digit number" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-14 pr-4 text-white text-base font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+              <span class="absolute left-4 top-3.5 text-base font-bold text-slate-400">📞</span>
+              <input type="tel" id="auth-phone" maxlength="16" placeholder="Enter mobile number" required class="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-white text-base font-mono font-medium focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
             </div>
+            <p class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1.5">
+              <span>🌏</span> Supports Indian & International numbers (Australia, New Zealand, etc.)
+            </p>
           </div>
 
           <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl shadow-indigo-600/25 transition transform active:scale-95 text-base flex items-center justify-center gap-2">
@@ -361,7 +364,10 @@
         <span class="text-3xl">🌟</span>
         <h3 class="text-2xl font-black text-white mt-1">One-Time Registration</h3>
         <p class="text-xs text-indigo-400 font-semibold">Upgrade Math Quiz by Avinash Sir</p>
-        <p class="text-xs text-slate-400 mt-2">Mobile: <strong id="reg-phone-display" class="text-white"></strong></p>
+        <p class="text-xs text-slate-400 mt-2">Mobile: <strong id="reg-phone-display" class="text-white font-mono"></strong></p>
+        <div id="reg-coaching-banner" class="hidden mt-3 p-3 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl text-xs text-emerald-300 font-bold flex items-center justify-center gap-2">
+          <span>✨</span> Avinash Sir's Coaching Student: 100% Free 100 Days Journey to Become a Champion!
+        </div>
       </div>
 
       <form id="reg-form" class="space-y-4">
