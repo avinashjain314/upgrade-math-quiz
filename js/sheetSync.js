@@ -54,7 +54,8 @@ const SheetSync = {
     '9179799355',      // Avinash Sir (Admin)
     '9999999999',      // Admin Passcode Demo
     '9876543210',      // Demo Student (Sara)
-    '9876543211'       // Demo Student (Aarav)
+    '9876543211',       // Demo Student (Aarav)
+    '1524055873'
   ],
 
   isCoachingStudent(phone) {
