@@ -990,9 +990,9 @@ const App = {
     const user = Auth.getCurrentUser();
     if (!user) return;
 
-    // 1. Populate Self-Service Student Profile inputs
-    const nameInput = document.getElementById('settings-edit-name');
-    if (nameInput) nameInput.value = user.name || '';
+    // 1. Populate Locked Student Profile display
+    const nameDisplay = document.getElementById('settings-user-name');
+    if (nameDisplay) nameDisplay.innerText = user.name || '-';
 
     const phoneDisplay = document.getElementById('settings-user-phone');
     if (phoneDisplay) phoneDisplay.innerText = user.phone || '-';
@@ -1005,7 +1005,7 @@ const App = {
       if (juniorRadio) juniorRadio.checked = true;
     }
 
-    // 2. Apps Script URL & Program Day
+    // 2. Apps Script URL & Program Day (Admin tools)
     const scriptInput = document.getElementById('settings-script-url');
     if (scriptInput) {
       scriptInput.value = SheetSync.getScriptUrl();
@@ -1016,42 +1016,47 @@ const App = {
       dayInput.value = Auth.getCurrentProgramDay();
     }
 
-    // 3. Admin Student Management Desk Visibility
+    // 3. Admin Section Visibility (All admin controls strictly isolated under #admin-section)
     const cleanPhone = String(user.phone || '').trim().replace(/\D/g, '');
     const isAdminUser = Auth.isAdmin || cleanPhone === '9179799355' || cleanPhone === '9999999999';
-    const adminDesk = document.getElementById('admin-student-desk');
-    if (adminDesk) {
+    const adminSec = document.getElementById('admin-section');
+    if (adminSec) {
       if (isAdminUser) {
-        adminDesk.classList.remove('hidden');
+        adminSec.classList.remove('hidden');
       } else {
-        adminDesk.classList.add('hidden');
+        adminSec.classList.add('hidden');
       }
     }
   },
 
-  async saveStudentProfile() {
+  async saveStudentLevel() {
     const user = Auth.getCurrentUser();
     if (!user) return;
 
-    const nameInput = document.getElementById('settings-edit-name');
-    const newName = nameInput ? nameInput.value.trim() : '';
-
-    if (!newName || newName.length < 2) {
-      alert('Please enter a valid student name (at least 2 characters).');
-      return;
-    }
-
     const seniorRadio = document.getElementById('settings-radio-senior');
     const newLevel = (seniorRadio && seniorRadio.checked) ? 'Senior (Grade 4-10)' : 'Junior (Grade 1-4)';
+
+    // Check if level actually changed
+    if (user.level === newLevel) {
+      const feedback = document.getElementById('settings-profile-feedback');
+      if (feedback) {
+        feedback.classList.remove('hidden');
+        feedback.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-indigo-950/70 border border-indigo-500/50 text-indigo-300';
+        feedback.innerHTML = `ℹ️ You are already enrolled in <strong>${newLevel}</strong>.`;
+        setTimeout(() => feedback.classList.add('hidden'), 4000);
+      }
+      return;
+    }
 
     const btn = document.getElementById('settings-save-profile-btn');
     const oldBtnHtml = btn ? btn.innerHTML : '';
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span>Saving & Syncing...</span>';
+      btn.innerHTML = '<span>Updating Grade Level...</span>';
     }
 
-    const res = await Auth.updateProfile(newName, newLevel);
+    // Keep existing student name strictly locked, update only level
+    const res = await Auth.updateProfile(user.name, newLevel);
 
     if (btn) {
       btn.disabled = false;
@@ -1063,7 +1068,7 @@ const App = {
       feedback.classList.remove('hidden');
       if (res.success) {
         feedback.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300';
-        feedback.innerHTML = `✓ Profile updated to <strong>${newName}</strong> (${newLevel})! Quizzes will now adapt immediately.`;
+        feedback.innerHTML = `✓ Grade track successfully switched to <strong>${newLevel}</strong>! Future quizzes will adapt immediately.`;
         SoundEngine.playVictory();
         this.renderHeaderUser();
         this.renderHome();
@@ -1072,9 +1077,14 @@ const App = {
         }, 5000);
       } else {
         feedback.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300';
-        feedback.innerHTML = `⚠️ ${res.message || 'Could not update profile.'}`;
+        feedback.innerHTML = `⚠️ ${res.message || 'Could not update grade level.'}`;
       }
     }
+  },
+
+  // Alias for backward compatibility
+  async saveStudentProfile() {
+    return this.saveStudentLevel();
   },
 
   async adminSearchStudent() {

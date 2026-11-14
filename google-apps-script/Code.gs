@@ -724,14 +724,28 @@ function handleLeaderboard(level) {
   
   const data = sheet.getDataRange().getValues();
   const students = [];
+  const reqFilter = String(level || 'all').trim().toLowerCase();
   
   for (let i = 1; i < data.length; i++) {
     const status = String(data[i][3] || 'ACTIVE').trim().toUpperCase();
     if (status === 'BLOCKED') continue;
     
-    const rowLevel = data[i][2];
-    if (level && level !== 'all' && rowLevel !== level) {
-      continue;
+    const rowLevel = String(data[i][2] || '');
+    const cleanRowLevel = rowLevel.toLowerCase();
+
+    // Grade filtering: supports 'all', 'junior'/'grade 1-4', and 'senior'/'grade 4-10'
+    if (reqFilter !== 'all' && reqFilter !== '') {
+      if (reqFilter.indexOf('junior') !== -1 || reqFilter.indexOf('1-4') !== -1) {
+        if (cleanRowLevel.indexOf('junior') === -1 && cleanRowLevel.indexOf('1-4') === -1) {
+          continue;
+        }
+      } else if (reqFilter.indexOf('senior') !== -1 || reqFilter.indexOf('4-10') !== -1) {
+        if (cleanRowLevel.indexOf('senior') === -1 && cleanRowLevel.indexOf('4-10') === -1) {
+          continue;
+        }
+      } else if (cleanRowLevel.indexOf(reqFilter) === -1) {
+        continue;
+      }
     }
     
     students.push({

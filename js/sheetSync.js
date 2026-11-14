@@ -426,21 +426,37 @@ const SheetSync = {
   // 4. FETCH LEADERBOARD
   async getLeaderboard(filterLevel = 'all') {
     const scriptUrl = this.getScriptUrl();
+    const cleanFilter = String(filterLevel || 'all').trim().toLowerCase();
+
+    // Helper to check if a student's level matches filter
+    const matchesLevel = (levelStr) => {
+      if (cleanFilter === 'all' || cleanFilter === '') return true;
+      const cl = String(levelStr || '').toLowerCase();
+      if (cleanFilter.includes('junior') || cleanFilter.includes('1-4')) {
+        return cl.includes('junior') || cl.includes('1-4');
+      }
+      if (cleanFilter.includes('senior') || cleanFilter.includes('4-10')) {
+        return cl.includes('senior') || cl.includes('4-10');
+      }
+      return cl.includes(cleanFilter);
+    };
+
     if (scriptUrl && navigator.onLine) {
       try {
-        const res = await fetch(`${scriptUrl}?action=leaderboard&level=${encodeURIComponent(filterLevel)}`);
+        const res = await fetch(`${scriptUrl}?action=leaderboard&level=${encodeURIComponent(cleanFilter)}&_nocache=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.leaderboard) {
+            let list = data.leaderboard.filter(s => matchesLevel(s.level));
             const currentUser = this.getCurrentUser();
-            if (currentUser && currentUser.name) {
-              const myEntry = data.leaderboard.find(s => s.name && s.name.toLowerCase() === currentUser.name.toLowerCase());
+            if (currentUser && currentUser.name && matchesLevel(currentUser.level)) {
+              const myEntry = list.find(s => s.name && s.name.toLowerCase() === currentUser.name.toLowerCase());
               if (myEntry) {
                 myEntry.score = Math.max(Number(myEntry.score) || 0, Number(currentUser.totalScore) || 0);
                 myEntry.streak = Math.max(Number(myEntry.streak) || 0, Number(currentUser.currentStreak) || 0);
                 myEntry.quizzes = Math.max(Number(myEntry.quizzes) || 0, Number(currentUser.quizzesCompleted) || 0);
               } else if (Number(currentUser.totalScore) > 0) {
-                data.leaderboard.push({
+                list.push({
                   name: currentUser.name,
                   level: currentUser.level,
                   score: currentUser.totalScore,
@@ -448,9 +464,11 @@ const SheetSync = {
                   quizzes: currentUser.quizzesCompleted
                 });
               }
-              data.leaderboard.sort((a, b) => b.score - a.score || b.streak - a.streak);
             }
-            return data.leaderboard;
+            if (list.length > 0) {
+              list.sort((a, b) => b.score - a.score || b.streak - a.streak);
+              return list;
+            }
           }
         }
       } catch (err) {}
@@ -481,11 +499,7 @@ const SheetSync = {
     }
 
     // Merge and filter
-    const combined = [...students, ...sampleStars].filter(s => {
-      if (filterLevel === 'all') return true;
-      return s.level.toLowerCase().includes(filterLevel.toLowerCase());
-    });
-
+    const combined = [...students, ...sampleStars].filter(s => matchesLevel(s.level));
     combined.sort((a, b) => b.score - a.score || b.streak - a.streak);
     return combined;
   },
