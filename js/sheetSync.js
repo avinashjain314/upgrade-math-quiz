@@ -50,7 +50,8 @@ const SheetSync = {
     '64211489307',     // Student 5 (New Zealand)
     '6195393482',      // Student 6 (International)
     '642041151177',    // Student 7 (New Zealand)
-    '64211452785',     // Student 8 (New Zealand)
+    '64211452785',     // Student 8 (New Zealand - International)
+    '0211452785',      // Student 8 (New Zealand - Local format)
     '1524055873',      // Student 9 (Coaching Student)
     '9179799355',      // Avinash Sir (Admin)
     '9999999999',      // Admin Passcode Demo
