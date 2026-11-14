@@ -29,14 +29,14 @@ const SheetSync = {
     }
   },
 
-  // Official, Hardcoded & Secure Payment Details for Avinash Sir
+  // Official & Secure Payment Details for Avinash Sir
   PAYMENT_CONFIG: {
     fee: 200,
     name: 'Avinash Bamboria',
+    mobileNumber: '9179799355',
+    contactPhone: '9179799355',
     upiId: 'avinashjain314-3@okhdfcbank',
-    bankName: 'SBM Bank India Ltd',
-    accountNumber: '20012521633258',
-    ifscCode: 'STCB0000065',
+    paypalAccepted: true,
     qrImage: 'assets/avinash_sir_qr.jpg'
   },
 

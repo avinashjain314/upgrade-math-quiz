@@ -132,9 +132,12 @@
           </button>
         </form>
 
-        <div class="pt-4 border-t border-slate-800/60 text-xs text-slate-400 space-y-1">
+        <div class="pt-4 border-t border-slate-800/60 text-xs text-slate-400 space-y-2">
           <p>✨ <strong>Avinash Sir Coaching Students:</strong> Free complete access!</p>
           <p>🧪 Quick test demo mobile: <code class="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 font-mono font-bold">9876543210</code></p>
+          <div class="mt-2 pt-2 border-t border-slate-800/40 text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+            <span>💬 If facing any issue, reach out to <strong>Avinash Sir</strong> on <a href="tel:9179799355" class="text-amber-300 font-bold font-mono underline hover:text-amber-200">9179799355</a> (Call / WhatsApp)</span>
+          </div>
         </div>
       </div>
     </section>
@@ -495,7 +498,7 @@
 
           <p class="text-[11px] text-slate-400 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60 flex items-start gap-2">
             <span class="text-base leading-none">ℹ️</span>
-            <span>Student name and registered mobile are permanently locked to preserve official test records. If you need to correct a spelling error in your name, please contact Avinash Sir.</span>
+            <span>Student name and registered mobile are permanently locked to preserve official test records. If facing any issue or need to correct your name, reach out to <strong>Avinash Sir</strong> on <a href="tel:9179799355" class="text-amber-300 font-bold font-mono underline hover:text-amber-200">9179799355</a>.</span>
           </p>
 
           <!-- Grade Level Radio Selector Cards (THE ONLY OPTION STUDENT CAN CHANGE) -->
@@ -1006,14 +1009,29 @@
       <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 text-center">
         <p class="text-xs font-bold text-slate-300">Step 1: Scan & Pay ₹200 with any UPI App (GPay, PhonePe, Paytm, BHIM):</p>
         
-        <!-- Official Avinash Sir Google Pay QR Image with ₹200 Autofilled -->
+        <!-- Avinash Sir Google Pay QR Image with ₹200 Autofilled -->
         <div class="flex flex-col items-center">
           <div class="p-2 bg-white rounded-3xl shadow-2xl border-4 border-indigo-500/40 inline-block max-w-[240px]">
             <img id="payment-qr-img" src="assets/avinash_sir_qr.jpg" alt="Avinash Sir Google Pay QR Code" class="w-full h-auto rounded-2xl object-contain">
           </div>
-          <p class="text-[11px] text-emerald-400 font-semibold mt-2.5 flex items-center justify-center gap-1">
-            <span>✓</span> Official Verified Merchant QR · ₹200 Autofilled
+          <p class="text-[11px] text-slate-400 font-medium mt-2 flex items-center justify-center gap-1">
+            <span>📲</span> Scan & Pay ₹200 with any UPI App
           </p>
+        </div>
+
+        <!-- Official Pay via Mobile Number (UPI / GPay / PhonePe / Paytm) card -->
+        <div class="bg-gradient-to-r from-indigo-950/90 via-slate-900 to-indigo-950/90 border border-indigo-500/50 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-left shadow-md">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm">📱</span>
+              <p class="text-[10px] text-indigo-300 uppercase font-extrabold tracking-wider">Pay via Mobile / UPI Number</p>
+            </div>
+            <p id="payment-mobile-display" class="font-mono text-base sm:text-lg font-black text-amber-300 truncate select-all tracking-wide">9179799355</p>
+            <p class="text-[10px] text-slate-400">Google Pay, PhonePe, Paytm, or BHIM</p>
+          </div>
+          <button onclick="App.copyMobileNumber()" id="btn-copy-mobile" class="shrink-0 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+            <span>📋</span> Copy Number
+          </button>
         </div>
 
         <!-- Official UPI ID card -->
@@ -1027,46 +1045,19 @@
           </button>
         </div>
 
-        <!-- Official Niyo SBM Bank Details Card -->
-        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-left space-y-2.5 text-xs">
-          <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-            <p class="text-[11px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <span>🏦</span> Niyo SBM Bank Transfer (NEFT / IMPS):
-            </p>
+        <!-- PayPal Also Accepted Card (For International & Domestic Parents) -->
+        <div class="bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-left transition shadow-md">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm">🌐</span>
+              <p class="text-[10px] text-cyan-300 uppercase font-extrabold tracking-wider">PayPal Also Accepted</p>
+            </div>
+            <p class="text-xs text-slate-200 mt-0.5 font-medium">Ideal for International cards & overseas parents</p>
+            <p class="text-[10px] text-slate-400">Reach out to Avinash Sir on <strong>9179799355</strong> for the instant PayPal link</p>
           </div>
-          
-          <div class="space-y-1.5 text-xs text-slate-300">
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-slate-400">Beneficiary Name:</span>
-              <strong id="payment-bank-name" class="text-white font-semibold">Avinash Bamboria</strong>
-            </div>
-            <div class="flex items-center justify-between py-0.5">
-              <span class="text-slate-400">Bank Name:</span>
-              <strong id="payment-bank-bank" class="text-white font-semibold">SBM Bank India Ltd</strong>
-            </div>
-            <div class="flex items-center justify-between py-1 bg-slate-950/60 px-3 rounded-xl border border-slate-800/80">
-              <div>
-                <span class="text-[10px] text-slate-400 block">Account Number:</span>
-                <strong id="payment-bank-acc" class="font-mono text-amber-300 font-bold text-sm tracking-wide">20012521633258</strong>
-              </div>
-              <button onclick="App.copyAccountNumber()" id="btn-copy-acc" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-bold transition">
-                📋 Copy
-              </button>
-            </div>
-            <div class="flex items-center justify-between py-1 bg-slate-950/60 px-3 rounded-xl border border-slate-800/80">
-              <div>
-                <span class="text-[10px] text-slate-400 block">IFSC Code:</span>
-                <strong id="payment-bank-ifsc" class="font-mono text-cyan-300 font-bold text-sm tracking-wide">STCB0000065</strong>
-              </div>
-              <button onclick="App.copyIfsc()" id="btn-copy-ifsc" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-bold transition">
-                📋 Copy
-              </button>
-            </div>
-          </div>
-
-          <button onclick="App.copyBankDetails()" id="btn-copy-bank" class="w-full mt-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-slate-700">
-            <span>📋</span> Copy All Bank Details
-          </button>
+          <a href="https://wa.me/919179799355?text=Hello%20Avinash%20Sir%2C%20please%20share%20the%20PayPal%20payment%20link%20for%20Upgrade%20Math%20Quiz" target="_blank" class="shrink-0 px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+            <span>💬</span> Request PayPal
+          </a>
         </div>
       </div>
 
@@ -1074,9 +1065,9 @@
       <div id="payment-submit-section" class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1">
-            Step 2: Enter 12-digit UTR / UPI Reference ID after payment:
+            Step 2: Enter 12-digit UTR / UPI Reference ID or PayPal Transaction ID after payment:
           </label>
-          <input type="text" id="payment-utr-input" maxlength="24" placeholder="e.g. 431289567823 (12-digit UTR / Ref No)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+          <input type="text" id="payment-utr-input" maxlength="32" placeholder="e.g. 431289567823 (12-digit UTR, UPI Ref, or PayPal ID)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
         </div>
         <button onclick="App.submitPaymentUtr()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-black rounded-xl shadow-lg transition transform active:scale-95 text-sm flex items-center justify-center gap-2">
           <span>🚀 I Have Paid · Submit for Approval</span>
@@ -1103,12 +1094,27 @@
         </button>
       </div>
 
+      <!-- Support / Reach Out to Avinash Sir Card -->
+      <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 text-center space-y-1">
+        <p class="text-xs text-slate-300">
+          💬 Facing any issue or want instant manual activation?
+        </p>
+        <p class="text-xs text-slate-200">
+          Reach out to <strong>Avinash Sir</strong> on: 
+          <a href="tel:9179799355" class="text-amber-300 font-bold font-mono underline hover:text-amber-200">9179799355</a>
+          <span class="text-slate-500 mx-1">·</span>
+          <a href="https://wa.me/919179799355?text=Hello%20Avinash%20Sir%2C%20I%20need%20help%20with%20Upgrade%20Math%20Quiz" target="_blank" class="text-emerald-400 font-bold hover:underline">WhatsApp Avinash Sir</a>
+        </p>
+      </div>
+
       <!-- Modal Footer -->
       <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
         <button onclick="App.logout()" class="text-slate-400 hover:text-white transition">
           ← Switch Student / Logout
         </button>
-        <span class="text-[11px] text-slate-500">Need help? WhatsApp Avinash Sir</span>
+        <a href="tel:9179799355" class="text-[11px] text-indigo-400 hover:underline font-semibold flex items-center gap-1">
+          <span>📞</span> Call: 9179799355
+        </a>
       </div>
 
     </div>

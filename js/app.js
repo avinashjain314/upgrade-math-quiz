@@ -1236,21 +1236,14 @@ const App = {
     const phoneEl = document.getElementById('payment-student-phone');
     if (phoneEl) phoneEl.innerText = cleanPhone;
 
-    // Pricing & Bank Info
     const feeEl = document.getElementById('payment-amount-display');
     if (feeEl) feeEl.innerText = cfg.fee || 200;
+    const mobileDisplayEl = document.getElementById('payment-mobile-display');
+    if (mobileDisplayEl) mobileDisplayEl.innerText = cfg.mobileNumber || '9179799355';
     const upiDisplayEl = document.getElementById('payment-upi-display');
     if (upiDisplayEl) upiDisplayEl.innerText = cfg.upiId;
-    const bankNameEl = document.getElementById('payment-bank-name');
-    if (bankNameEl) bankNameEl.innerText = cfg.name;
-    const bankBankEl = document.getElementById('payment-bank-bank');
-    if (bankBankEl) bankBankEl.innerText = cfg.bankName;
-    const bankAccEl = document.getElementById('payment-bank-acc');
-    if (bankAccEl) bankAccEl.innerText = cfg.accountNumber;
-    const bankIfscEl = document.getElementById('payment-bank-ifsc');
-    if (bankIfscEl) bankIfscEl.innerText = cfg.ifscCode;
 
-    // Official Authentic QR Image
+    // Authentic QR Image
     const qrImg = document.getElementById('payment-qr-img');
     if (qrImg) {
       qrImg.src = cfg.qrImage || 'assets/avinash_sir_qr.jpg';
@@ -1304,10 +1297,11 @@ const App = {
     this.switchView('auth');
   },
 
-  copyUpiId() {
+  copyMobileNumber() {
     const cfg = SheetSync.getPaymentConfig();
-    navigator.clipboard.writeText(cfg.upiId).then(() => {
-      const btn = document.getElementById('btn-copy-upi');
+    const mobile = cfg.mobileNumber || '9179799355';
+    navigator.clipboard.writeText(mobile).then(() => {
+      const btn = document.getElementById('btn-copy-mobile');
       if (btn) {
         const old = btn.innerHTML;
         btn.innerHTML = '✓ Copied!';
@@ -1320,50 +1314,17 @@ const App = {
     });
   },
 
-  copyAccountNumber() {
+  copyUpiId() {
     const cfg = SheetSync.getPaymentConfig();
-    navigator.clipboard.writeText(cfg.accountNumber).then(() => {
-      const btn = document.getElementById('btn-copy-acc');
+    navigator.clipboard.writeText(cfg.upiId).then(() => {
+      const btn = document.getElementById('btn-copy-upi');
       if (btn) {
         const old = btn.innerHTML;
-        btn.innerHTML = '✓ Copied';
-        btn.classList.add('text-emerald-400');
+        btn.innerHTML = '✓ Copied!';
+        btn.classList.add('bg-emerald-600');
         setTimeout(() => {
           btn.innerHTML = old;
-          btn.classList.remove('text-emerald-400');
-        }, 2000);
-      }
-    });
-  },
-
-  copyIfsc() {
-    const cfg = SheetSync.getPaymentConfig();
-    navigator.clipboard.writeText(cfg.ifscCode).then(() => {
-      const btn = document.getElementById('btn-copy-ifsc');
-      if (btn) {
-        const old = btn.innerHTML;
-        btn.innerHTML = '✓ Copied';
-        btn.classList.add('text-emerald-400');
-        setTimeout(() => {
-          btn.innerHTML = old;
-          btn.classList.remove('text-emerald-400');
-        }, 2000);
-      }
-    });
-  },
-
-  copyBankDetails() {
-    const cfg = SheetSync.getPaymentConfig();
-    const text = `Beneficiary Name: ${cfg.name}\nBank Name: ${cfg.bankName}\nAccount Number: ${cfg.accountNumber}\nIFSC Code: ${cfg.ifscCode}\nAmount: ₹${cfg.fee}`;
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.getElementById('btn-copy-bank');
-      if (btn) {
-        const old = btn.innerHTML;
-        btn.innerHTML = '✓ Copied All Bank Details!';
-        btn.classList.add('bg-emerald-700');
-        setTimeout(() => {
-          btn.innerHTML = old;
-          btn.classList.remove('bg-emerald-700');
+          btn.classList.remove('bg-emerald-600');
         }, 2000);
       }
     });
