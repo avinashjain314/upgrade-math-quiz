@@ -30,6 +30,7 @@ const COACHING_STUDENTS = [
   '6195393482',      // Student 6 (International)
   '642041151177',    // Student 7 (New Zealand)
   '64211452785',     // Student 8 (New Zealand)
+  '1524055873',      // Student 9 (Coaching Student)
   '9179799355',      // Avinash Sir (Admin)
   '9999999999',      // Admin Passcode Demo
   '9876543210',      // Demo Student (Sara)

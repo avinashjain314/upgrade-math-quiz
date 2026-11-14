@@ -1294,7 +1294,16 @@ const App = {
       modal.classList.remove('flex');
     }
     Auth.logout();
+    this.renderHeaderUser();
+    const phoneInput = document.getElementById('auth-phone');
+    if (phoneInput) {
+      phoneInput.value = '';
+    }
     this.switchView('auth');
+    setTimeout(() => {
+      const pInput = document.getElementById('auth-phone');
+      if (pInput) pInput.focus();
+    }, 150);
   },
 
   copyMobileNumber() {
