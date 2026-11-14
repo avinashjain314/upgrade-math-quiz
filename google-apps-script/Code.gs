@@ -29,6 +29,7 @@ const COACHING_STUDENTS = [
   '64211489307',     // Student 5 (New Zealand)
   '6195393482',      // Student 6 (International)
   '642041151177',    // Student 7 (New Zealand)
+  '64211452785',     // Student 8 (New Zealand)
   '9179799355',      // Avinash Sir (Admin)
   '9999999999',      // Admin Passcode Demo
   '9876543210',      // Demo Student (Sara)
@@ -139,6 +140,12 @@ function setupSheets() {
       .setAllowInvalid(true)
       .build();
     studentSheet.getRange(2, 4, 500, 1).setDataValidation(statusRule);
+
+    const levelRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Junior (Grade 1-4)', 'Senior (Grade 4-10)'], true)
+      .setAllowInvalid(true)
+      .build();
+    studentSheet.getRange(2, 3, 500, 1).setDataValidation(levelRule);
   } catch (e) {
     Logger.log('Validation rule set: ' + e);
   }
@@ -234,6 +241,8 @@ function doGet(e) {
       return handleRegister(params);
     } else if (action === 'payment_submitted') {
       return handlePaymentSubmitted(params);
+    } else if (action === 'update_profile') {
+      return handleUpdateProfile(params);
     } else {
       return jsonResponse({
         status: 'success',
@@ -269,6 +278,8 @@ function doPost(e) {
       return handleSubmitQuiz(payload);
     } else if (action === 'payment_submitted') {
       return handlePaymentSubmitted(payload);
+    } else if (action === 'update_profile') {
+      return handleUpdateProfile(payload);
     } else {
       return jsonResponse({ status: 'error', message: 'Unknown action: ' + action });
     }
@@ -554,6 +565,65 @@ function handlePaymentSubmitted(data) {
     status: 'success',
     message: 'Payment details submitted successfully! Avinash Sir has been notified.'
   });
+}
+
+/**
+ * Updates student profile (Name and/or Level track)
+ * Supports student self-service and Avinash Sir's admin management desk
+ */
+function handleUpdateProfile(params) {
+  const phone = String(params.phone || '').trim().replace(/\D/g, '');
+  const newName = String(params.name || '').trim();
+  const newLevel = String(params.level || '').trim();
+  const newStatus = String(params.status || '').trim();
+
+  if (!phone) {
+    return jsonResponse({ status: 'error', message: 'Phone number is required.' });
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = getStudentSheet(ss);
+  if (!sheet) {
+    setupSheets();
+    sheet = getStudentSheet(ss);
+  }
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const rowPhone = String(data[i][0]).trim().replace(/\D/g, '');
+    if (rowPhone === phone) {
+      const rowIdx = i + 1; // 1-based sheet row
+
+      // Update Column 2 (Student Name) if provided
+      if (newName) {
+        sheet.getRange(rowIdx, 2).setValue(newName);
+      }
+      // Update Column 3 (Level Track) if provided
+      if (newLevel) {
+        sheet.getRange(rowIdx, 3).setValue(newLevel);
+      }
+      // Update Column 4 (Access Status) if provided by Admin
+      if (newStatus) {
+        sheet.getRange(rowIdx, 4).setValue(newStatus);
+      }
+      // Update Column 10 (Last Active Date)
+      sheet.getRange(rowIdx, 10).setValue(new Date().toISOString());
+      SpreadsheetApp.flush();
+
+      return jsonResponse({
+        status: 'success',
+        message: 'Profile updated successfully for ' + phone,
+        student: {
+          phone: phone,
+          name: newName || data[i][1],
+          level: newLevel || data[i][2],
+          accessStatus: newStatus || data[i][3]
+        }
+      });
+    }
+  }
+
+  return jsonResponse({ status: 'error', message: 'Student with mobile ' + phone + ' not found in sheet.' });
 }
 
 function handleSubmitQuiz(data) {

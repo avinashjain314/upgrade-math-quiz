@@ -984,14 +984,28 @@ const App = {
   // -------------------------------------------------------------
   // SETTINGS & ADMIN
   // -------------------------------------------------------------
+  adminTargetStudent: null,
+
   renderSettings() {
     const user = Auth.getCurrentUser();
     if (!user) return;
 
-    document.getElementById('settings-user-name').innerText = user.name;
-    document.getElementById('settings-user-phone').innerText = user.phone;
-    document.getElementById('settings-user-level').innerText = user.level;
+    // 1. Populate Self-Service Student Profile inputs
+    const nameInput = document.getElementById('settings-edit-name');
+    if (nameInput) nameInput.value = user.name || '';
 
+    const phoneDisplay = document.getElementById('settings-user-phone');
+    if (phoneDisplay) phoneDisplay.innerText = user.phone || '-';
+
+    const juniorRadio = document.getElementById('settings-radio-junior');
+    const seniorRadio = document.getElementById('settings-radio-senior');
+    if (user.level && user.level.includes('Senior')) {
+      if (seniorRadio) seniorRadio.checked = true;
+    } else {
+      if (juniorRadio) juniorRadio.checked = true;
+    }
+
+    // 2. Apps Script URL & Program Day
     const scriptInput = document.getElementById('settings-script-url');
     if (scriptInput) {
       scriptInput.value = SheetSync.getScriptUrl();
@@ -1000,6 +1014,183 @@ const App = {
     const dayInput = document.getElementById('settings-program-day');
     if (dayInput) {
       dayInput.value = Auth.getCurrentProgramDay();
+    }
+
+    // 3. Admin Student Management Desk Visibility
+    const cleanPhone = String(user.phone || '').trim().replace(/\D/g, '');
+    const isAdminUser = Auth.isAdmin || cleanPhone === '9179799355' || cleanPhone === '9999999999';
+    const adminDesk = document.getElementById('admin-student-desk');
+    if (adminDesk) {
+      if (isAdminUser) {
+        adminDesk.classList.remove('hidden');
+      } else {
+        adminDesk.classList.add('hidden');
+      }
+    }
+  },
+
+  async saveStudentProfile() {
+    const user = Auth.getCurrentUser();
+    if (!user) return;
+
+    const nameInput = document.getElementById('settings-edit-name');
+    const newName = nameInput ? nameInput.value.trim() : '';
+
+    if (!newName || newName.length < 2) {
+      alert('Please enter a valid student name (at least 2 characters).');
+      return;
+    }
+
+    const seniorRadio = document.getElementById('settings-radio-senior');
+    const newLevel = (seniorRadio && seniorRadio.checked) ? 'Senior (Grade 4-10)' : 'Junior (Grade 1-4)';
+
+    const btn = document.getElementById('settings-save-profile-btn');
+    const oldBtnHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Saving & Syncing...</span>';
+    }
+
+    const res = await Auth.updateProfile(newName, newLevel);
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldBtnHtml;
+    }
+
+    const feedback = document.getElementById('settings-profile-feedback');
+    if (feedback) {
+      feedback.classList.remove('hidden');
+      if (res.success) {
+        feedback.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300';
+        feedback.innerHTML = `✓ Profile updated to <strong>${newName}</strong> (${newLevel})! Quizzes will now adapt immediately.`;
+        SoundEngine.playVictory();
+        this.renderHeaderUser();
+        this.renderHome();
+        setTimeout(() => {
+          feedback.classList.add('hidden');
+        }, 5000);
+      } else {
+        feedback.className = 'text-xs font-semibold px-3 py-2 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-300';
+        feedback.innerHTML = `⚠️ ${res.message || 'Could not update profile.'}`;
+      }
+    }
+  },
+
+  async adminSearchStudent() {
+    const input = document.getElementById('admin-lookup-phone');
+    const phone = input ? input.value.trim().replace(/\D/g, '') : '';
+
+    if (!phone || phone.length < 6) {
+      alert('Please enter a valid student mobile number to search.');
+      return;
+    }
+
+    const btn = document.getElementById('admin-search-btn');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Searching...</span>';
+    }
+
+    const res = await SheetSync.verifyStudent(phone);
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+
+    const editContainer = document.getElementById('admin-edit-container');
+    const feedbackBox = document.getElementById('admin-feedback-box');
+    if (feedbackBox) feedbackBox.classList.add('hidden');
+
+    if (res.student) {
+      this.adminTargetStudent = res.student;
+      if (editContainer) editContainer.classList.remove('hidden');
+
+      const phoneBadge = document.getElementById('admin-target-phone-badge');
+      if (phoneBadge) phoneBadge.innerText = phone;
+
+      const noteEl = document.getElementById('admin-target-status-note');
+      if (noteEl) {
+        noteEl.innerHTML = res.fromOnline ? '<span class="text-emerald-400">✓ Found live in Google Sheet</span>' : '<span class="text-amber-400">⚡ Found in Local Cache</span>';
+      }
+
+      const nameField = document.getElementById('admin-edit-name');
+      if (nameField) nameField.value = res.student.name || '';
+
+      const levelSelect = document.getElementById('admin-edit-level');
+      if (levelSelect) {
+        levelSelect.value = (res.student.level && res.student.level.includes('Senior')) ? 'Senior (Grade 4-10)' : 'Junior (Grade 1-4)';
+      }
+
+      const statusSelect = document.getElementById('admin-edit-status');
+      if (statusSelect) {
+        statusSelect.value = res.student.accessStatus || 'ACTIVE';
+      }
+    } else {
+      if (editContainer) editContainer.classList.add('hidden');
+      alert(`Student with mobile ${phone} was not found in the Google Sheet. Please verify the number.`);
+    }
+  },
+
+  async adminSaveStudent() {
+    if (!this.adminTargetStudent) {
+      alert('No student selected. Please search for a mobile number first.');
+      return;
+    }
+
+    const phone = this.adminTargetStudent.phone;
+    const nameField = document.getElementById('admin-edit-name');
+    const levelSelect = document.getElementById('admin-edit-level');
+    const statusSelect = document.getElementById('admin-edit-status');
+
+    const newName = nameField ? nameField.value.trim() : '';
+    const newLevel = levelSelect ? levelSelect.value : 'Junior (Grade 1-4)';
+    const newStatus = statusSelect ? statusSelect.value : 'ACTIVE';
+
+    if (!newName || newName.length < 2) {
+      alert('Please enter a valid student name.');
+      return;
+    }
+
+    const btn = document.getElementById('admin-save-btn');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Updating in Google Sheet...</span>';
+    }
+
+    const res = await SheetSync.updateStudentProfile({
+      phone: phone,
+      name: newName,
+      level: newLevel,
+      status: newStatus
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+
+    const feedback = document.getElementById('admin-feedback-box');
+    if (feedback) {
+      feedback.classList.remove('hidden');
+      feedback.className = 'text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300';
+      feedback.innerHTML = `✓ Student ${phone} successfully updated to "${newName}" (${newLevel}, ${newStatus}) in Google Sheet!`;
+      SoundEngine.playVictory();
+      setTimeout(() => {
+        feedback.classList.add('hidden');
+      }, 5000);
+    }
+
+    // If current logged-in user is this student, update in-memory
+    const current = Auth.getCurrentUser();
+    if (current && String(current.phone).replace(/\D/g, '') === String(phone).replace(/\D/g, '')) {
+      current.name = newName;
+      current.level = newLevel;
+      current.accessStatus = newStatus;
+      this.renderHeaderUser();
     }
   },
 

@@ -174,6 +174,29 @@ const Auth = {
     return { success: false, message: 'Registration failed. Please try again.' };
   },
 
+  async updateProfile(newName, newLevel) {
+    if (!this.currentUser) return { success: false, message: 'Not logged in.' };
+    const cleanName = String(newName || '').trim();
+    const cleanLevel = String(newLevel || '').trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      return { success: false, message: 'Please enter a valid student name (at least 2 letters).' };
+    }
+
+    this.currentUser.name = cleanName;
+    if (cleanLevel) this.currentUser.level = cleanLevel;
+    SheetSync.saveLocalUser(this.currentUser);
+    SheetSync.setCurrentUser(this.currentUser);
+
+    const res = await SheetSync.updateStudentProfile({
+      phone: this.currentUser.phone,
+      name: cleanName,
+      level: cleanLevel
+    });
+
+    return { success: true, student: this.currentUser, syncRes: res };
+  },
+
   logout() {
     this.currentUser = null;
     this.isAdmin = false;

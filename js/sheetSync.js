@@ -244,6 +244,70 @@ const SheetSync = {
     return { success: true, student: localStudent };
   },
 
+  // 2.5 UPDATE STUDENT PROFILE (NAME & LEVEL TRACK)
+  async updateStudentProfile(payload) {
+    const cleanPhone = String(payload.phone || '').trim().replace(/\D/g, '');
+    const cleanName = String(payload.name || '').trim();
+    const cleanLevel = String(payload.level || '').trim();
+    const cleanStatus = payload.status ? String(payload.status).trim() : '';
+
+    // Update locally first
+    const users = this.getLocalUsers();
+    if (users[cleanPhone]) {
+      if (cleanName) users[cleanPhone].name = cleanName;
+      if (cleanLevel) users[cleanPhone].level = cleanLevel;
+      if (cleanStatus) users[cleanPhone].accessStatus = cleanStatus;
+      users[cleanPhone].lastActiveDate = new Date().toISOString();
+      this.saveLocalUser(users[cleanPhone]);
+    }
+
+    // Update currentUser if active
+    const currentUser = this.getCurrentUser();
+    if (currentUser && currentUser.phone === cleanPhone) {
+      if (cleanName) currentUser.name = cleanName;
+      if (cleanLevel) currentUser.level = cleanLevel;
+      if (cleanStatus) currentUser.accessStatus = cleanStatus;
+      this.setCurrentUser(currentUser);
+    }
+
+    // Sync online with Google Sheet
+    const scriptUrl = this.getScriptUrl();
+    if (scriptUrl && navigator.onLine) {
+      const params = {
+        action: 'update_profile',
+        phone: cleanPhone,
+        name: cleanName,
+        level: cleanLevel,
+        status: cleanStatus
+      };
+      try {
+        const qs = new URLSearchParams(params).toString();
+        const response = await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
+          method: 'GET',
+          mode: 'cors'
+        });
+        if (response.ok) {
+          const resData = await response.json();
+          return { success: true, student: users[cleanPhone] || currentUser, remote: resData };
+        }
+      } catch (e) {
+        console.warn('GET update_profile error:', e);
+      }
+
+      // Redundant POST
+      try {
+        fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params)
+        }).catch(() => {});
+      } catch (err) {}
+    }
+
+    return { success: true, student: users[cleanPhone] || currentUser };
+  },
+
   // 3. SUBMIT COMPLETED QUIZ
   async submitQuiz(submission) {
     const cleanPhone = String(submission.phone).trim().replace(/\D/g, '');
@@ -448,6 +512,14 @@ const SheetSync = {
       return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.CURRENT_USER));
     } catch (e) {
       return null;
+    }
+  },
+
+  setCurrentUser(user) {
+    if (user) {
+      localStorage.setItem(this.STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(this.STORAGE_KEYS.CURRENT_USER);
     }
   },
 

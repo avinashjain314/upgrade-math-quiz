@@ -459,32 +459,164 @@
         <p class="text-xs text-slate-400">Manage your student account, Google Sheet integration, and preferences.</p>
       </div>
 
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <h3 class="font-bold text-sm text-white">Student Information</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
-            <span class="text-slate-400">Name:</span>
-            <p id="settings-user-name" class="font-bold text-white text-sm mt-0.5">-</p>
+      <!-- 1. STUDENT PROFILE & EDITABLE LEVEL/NAME CARD -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <span>👤</span> Student Profile & Level
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Need to fix a typo or change your grade level? Modify your details anytime below.</p>
           </div>
-          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
-            <span class="text-slate-400">Mobile:</span>
-            <p id="settings-user-phone" class="font-bold text-white text-sm mt-0.5">-</p>
+          <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            Self-Service
+          </span>
+        </div>
+
+        <!-- Student Form Inputs -->
+        <div class="space-y-4">
+          <!-- Name Input & Mobile display -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Student Full Name</label>
+              <div class="relative">
+                <input type="text" id="settings-edit-name" placeholder="Enter student name" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-semibold focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Registered Mobile (Account ID)</label>
+              <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-300 flex items-center justify-between">
+                <span id="settings-user-phone">-</span>
+                <span class="text-[10px] text-slate-400 font-sans">Locked (ID)</span>
+              </div>
+            </div>
           </div>
-          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
-            <span class="text-slate-400">Level Track:</span>
-            <p id="settings-user-level" class="font-bold text-white text-sm mt-0.5">-</p>
+
+          <!-- Grade Level Radio Selector Cards -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Grade / Difficulty Track</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label id="settings-label-junior" class="relative flex items-start gap-3 p-3.5 bg-slate-950 rounded-2xl border border-slate-800 hover:border-indigo-500/60 cursor-pointer transition">
+                <input type="radio" name="settings-level" value="Junior (Grade 1-4)" id="settings-radio-junior" class="mt-1 text-indigo-600 focus:ring-0">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-extrabold text-white">Junior Level</span>
+                    <span class="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Grade 1-4</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">Arithmetic, Story sums, Fractions, Decimals, Clocks & Money</p>
+                </div>
+              </label>
+
+              <label id="settings-label-senior" class="relative flex items-start gap-3 p-3.5 bg-slate-950 rounded-2xl border border-slate-800 hover:border-indigo-500/60 cursor-pointer transition">
+                <input type="radio" name="settings-level" value="Senior (Grade 4-10)" id="settings-radio-senior" class="mt-1 text-indigo-600 focus:ring-0">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-extrabold text-white">Senior Level</span>
+                    <span class="text-[10px] font-bold px-2 py-0.2 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">Grade 4-10</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">BODMAS, Algebra, Percentages, Geometry, Ratios & Speed Math</p>
+                </div>
+              </label>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">
+              💡 <em>Note:</em> Changing your grade track keeps all your earned points, streaks, and badges intact. Future daily quizzes and practice sessions will immediately adapt to your chosen level!
+            </p>
+          </div>
+
+          <!-- Save Button & Feedback -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+            <button onclick="App.saveStudentProfile()" id="settings-save-profile-btn" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-extrabold rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+              <span>💾</span> <span>Save Profile Changes</span>
+            </button>
+            <div id="settings-profile-feedback" class="hidden text-xs font-semibold px-3 py-2 rounded-xl"></div>
           </div>
         </div>
 
-        <div class="flex flex-wrap gap-3 pt-2">
-          <button onclick="Auth.logout(); App.switchView('auth')" class="px-4 py-2 bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-xl hover:bg-rose-900 transition">
-            Switch Student / Logout
+        <!-- Account Actions -->
+        <div class="flex flex-wrap gap-3 pt-3 border-t border-slate-800/80">
+          <button onclick="Auth.logout(); App.switchView('auth')" class="px-4 py-2 bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-xl hover:bg-rose-900 transition flex items-center gap-1.5">
+            <span>🚪</span> <span>Switch Student / Logout</span>
           </button>
-          <button onclick="if(confirm('Reset local browser test cache for fresh testing?')){ localStorage.clear(); location.reload(); }" class="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-bold rounded-xl transition">
-            🧹 Reset Local Test Cache
+          <button onclick="if(confirm('Reset local browser test cache for fresh testing?')){ localStorage.clear(); location.reload(); }" class="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5">
+            <span>🧹</span> <span>Reset Local Test Cache</span>
           </button>
         </div>
       </div>
+
+      <!-- 2. AVINASH SIR'S ADMIN STUDENT MANAGEMENT DESK -->
+      <div id="admin-student-desk" class="bg-gradient-to-br from-indigo-950/40 via-slate-900 to-purple-950/40 border-2 border-indigo-500/40 rounded-2xl p-6 space-y-4 shadow-2xl hidden">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">👑</span>
+            <div>
+              <h3 class="font-extrabold text-base text-white">Avinash Sir's Student Management Desk</h3>
+              <p class="text-xs text-indigo-300">Quickly correct any student's name, switch their level, or approve access directly in the Google Sheet.</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
+            Admin Only
+          </span>
+        </div>
+
+        <!-- Phone Search Bar -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">Lookup Student by Mobile Number</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <span class="absolute left-3.5 top-2.5 text-slate-400 text-sm">🔍</span>
+              <input type="tel" id="admin-lookup-phone" placeholder="Enter mobile (e.g. 64211452785, 8979317487)" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <button onclick="App.adminSearchStudent()" id="admin-search-btn" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 shrink-0">
+              <span>Search Student</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Admin Search Result / Edit Form Container -->
+        <div id="admin-edit-container" class="hidden p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <span>📝</span> Editing: <span id="admin-target-phone-badge" class="font-mono text-indigo-400"></span>
+              </h4>
+              <p id="admin-target-status-note" class="text-[11px] text-slate-400 mt-0.5"></p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Student Name</label>
+              <input type="text" id="admin-edit-name" placeholder="Student Full Name" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Level Track</label>
+              <select id="admin-edit-level" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+                <option value="Junior (Grade 1-4)">Junior (Grade 1-4)</option>
+                <option value="Senior (Grade 4-10)">Senior (Grade 4-10)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Access Status</label>
+              <select id="admin-edit-status" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+                <option value="ACTIVE">ACTIVE (Full Access)</option>
+                <option value="PENDING_APPROVAL">PENDING_APPROVAL (Paid, Awaiting)</option>
+                <option value="PENDING_VERIFY">PENDING_VERIFY (Unpaid)</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+            <button onclick="App.adminSaveStudent()" id="admin-save-btn" class="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-extrabold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-1.5">
+              <span>⚡</span> <span>Update Student in Google Sheet</span>
+            </button>
+            <div id="admin-feedback-box" class="hidden text-xs font-semibold px-3 py-1.5 rounded-xl"></div>
+          </div>
+        </div>
+      </div>
+
 
       <!-- Program Day Controller for Avinash Sir -->
       <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
