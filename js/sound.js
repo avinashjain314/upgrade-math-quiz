@@ -150,6 +150,52 @@ const SoundEngine = {
     } catch (e) {}
   },
 
+  // 6. Wordwall Bonus Round: Card Flip Sound (Crisp paper/card snap)
+  playCardFlip() {
+    if (!this.enabled) return;
+    try {
+      this.unlock();
+      this.playTone(600, 'triangle', 0.06, 0.20);
+      setTimeout(() => {
+        this.playTone(950, 'sine', 0.08, 0.22);
+      }, 40);
+    } catch (e) {}
+  },
+
+  // 7. Wordwall Bonus Round: Card Shuffle Sound (Gentle whoosh flutter)
+  playCardShuffle() {
+    if (!this.enabled) return;
+    try {
+      this.unlock();
+      const freqs = [350, 420, 520, 640];
+      freqs.forEach((f, idx) => {
+        setTimeout(() => {
+          this.playTone(f, 'sine', 0.05, 0.15);
+        }, idx * 35);
+      });
+    } catch (e) {}
+  },
+
+  // 8. Wordwall Bonus Round: Card Bonus Win Fanfare (Triumphant arcade powerup)
+  playBonusWin() {
+    if (!this.enabled) return;
+    try {
+      this.unlock();
+      const bonusNotes = [
+        { f: 440, d: 0.10, t: 0 },
+        { f: 554.37, d: 0.10, t: 90 },
+        { f: 659.25, d: 0.12, t: 180 },
+        { f: 880, d: 0.14, t: 270 },
+        { f: 1108.73, d: 0.35, t: 370 }
+      ];
+      bonusNotes.forEach(n => {
+        setTimeout(() => {
+          this.playTone(n.f, 'triangle', n.d, 0.35);
+        }, n.t);
+      });
+    } catch (e) {}
+  },
+
   // =============================================================
   // PROCEDURAL SOOTHING ZEN FOCUS CHIMES (BGM)
   // Gentle, high-clarity crystal wind chimes tuned to 528Hz Solfeggio harmony

@@ -59,6 +59,9 @@
         <button onclick="App.switchView('home')" data-view="home" class="nav-btn px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
           <span>🏠</span> <span>Home</span>
         </button>
+        <button onclick="App.switchView('practice')" data-view="practice" class="nav-btn px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+          <span>🎯</span> <span>Practice</span>
+        </button>
         <button onclick="App.switchView('roadmap')" data-view="roadmap" class="nav-btn px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white">
           <span>🗺️</span> <span>100 Days</span>
         </button>
@@ -142,6 +145,205 @@
       <div id="home-missed-days-banner" class="hidden"></div>
       <div id="home-today-quiz-card"></div>
       <div id="home-daily-trick-card"></div>
+    </section>
+
+    <!-- 2.5 PRACTICE ARENA (UNGRADED TOPIC PRACTICE) -->
+    <section id="view-practice" class="hidden space-y-6">
+      <!-- Practice Topic Selector Hub -->
+      <div id="practice-hub-container" class="space-y-6">
+        <div class="bg-gradient-to-r from-indigo-950/80 via-purple-950/70 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-2">
+                <span>🎯</span> Practice Arena (Zero Pressure)
+              </div>
+              <h2 class="text-2xl sm:text-3xl font-black text-white">Targeted Math Practice</h2>
+              <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
+                Choose any topic to master! Points here are <strong>not counted on the leaderboard</strong>, giving you freedom to practice, learn from mistakes, and build pure confidence!
+              </p>
+            </div>
+            <div class="shrink-0">
+              <span class="text-5xl">🧘‍♂️</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10 Practice Topics Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="practice-topics-grid">
+          <!-- 1. Fractions -->
+          <div onclick="App.startPracticeTopic('fractions')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-indigo-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">➗</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">All Grades</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-indigo-300 transition">Fractions</h4>
+            <p class="text-xs text-slate-400">Equivalent fractions, proper/improper, simplification & operations.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-indigo-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 2. Decimals -->
+          <div onclick="App.startPracticeTopic('decimals')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-cyan-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">🔢</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">All Grades</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-cyan-300 transition">Decimals</h4>
+            <p class="text-xs text-slate-400">Decimal place values, conversions, additions & multiplications.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-cyan-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 3. Addition -->
+          <div onclick="App.startPracticeTopic('addition')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-emerald-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">➕</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Speed Math</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-emerald-300 transition">Addition</h4>
+            <p class="text-xs text-slate-400">Rapid single & multi-digit addition with carry-over tricks.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-emerald-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 4. Subtraction -->
+          <div onclick="App.startPracticeTopic('subtraction')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-amber-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">➖</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Complements</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-amber-300 transition">Subtraction</h4>
+            <p class="text-xs text-slate-400">Borrowing, 10s/100s complements, and integer subtraction.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-amber-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 5. Division -->
+          <div onclick="App.startPracticeTopic('division')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-purple-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">➗</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Quotients</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-purple-300 transition">Division</h4>
+            <p class="text-xs text-slate-400">Quotients, remainders, divisibility rules, and mental shortcuts.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-purple-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 6. Multiplication -->
+          <div onclick="App.startPracticeTopic('multiplication')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-pink-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">✖️</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Vedic Shortcuts</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-pink-300 transition">Multiplication</h4>
+            <p class="text-xs text-slate-400">Times tables mastery, cross-multiplication, and square shortcuts.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-pink-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 7. Ratio -->
+          <div onclick="App.startPracticeTopic('ratio')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-teal-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">⚖️</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Proportions</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-teal-300 transition">Ratio & Proportion</h4>
+            <p class="text-xs text-slate-400">Simplifying ratios, dividing quantities, and direct proportions.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-teal-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 8. Word Problems -->
+          <div onclick="App.startPracticeTopic('wordproblems')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-blue-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">📖</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Real-World</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-blue-300 transition">Word Problems</h4>
+            <p class="text-xs text-slate-400">Step-by-step logic, unitary method, shopping, and everyday stories.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-blue-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 9. Percentage -->
+          <div onclick="App.startPracticeTopic('percentage')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-violet-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">💯</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Discounts & %</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-violet-300 transition">Percentage</h4>
+            <p class="text-xs text-slate-400">Calculating percent of amounts, discounts, and profit/loss basics.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-violet-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+
+          <!-- 10. BODMAS -->
+          <div onclick="App.startPracticeTopic('bodmas')" class="glass-card-interactive p-5 rounded-2xl cursor-pointer border border-slate-800 hover:border-rose-500/50 space-y-2 group">
+            <div class="flex items-center justify-between">
+              <span class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-xl group-hover:scale-110 transition">🧠</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Order of Ops</span>
+            </div>
+            <h4 class="text-base font-extrabold text-white group-hover:text-rose-300 transition">BODMAS</h4>
+            <p class="text-xs text-slate-400">Brackets, Orders, Division, Multiplication, Addition, Subtraction.</p>
+            <div class="pt-2 flex items-center text-xs font-bold text-rose-400 gap-1">
+              <span>Start Practice</span> <span>➔</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Practice Session Gameplay Player Container -->
+      <div id="practice-player-container" class="hidden space-y-6">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between">
+            <button onclick="App.exitPractice()" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 flex items-center gap-1.5 transition">
+              <span>←</span> <span>Back to Topics</span>
+            </button>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                <span>🔥 Streak:</span> <strong id="practice-streak-counter">0</strong>
+              </span>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Practice Mode (Ungraded)
+              </span>
+            </div>
+          </div>
+
+          <!-- Practice Question Display -->
+          <div class="p-4 sm:p-6 rounded-2xl bg-slate-950/70 border border-slate-800/90 space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <span id="practice-topic-badge" class="font-bold text-indigo-400 uppercase tracking-wider">Fractions</span>
+              <span id="practice-difficulty-badge" class="font-semibold text-slate-400">🟢 Practice Level</span>
+            </div>
+            <h3 id="practice-question-text" class="text-xl sm:text-2xl font-black text-white leading-relaxed"></h3>
+          </div>
+
+          <!-- Practice Options Grid -->
+          <div id="practice-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+          <!-- Practice Feedback Box -->
+          <div id="practice-feedback-box" class="hidden p-4 rounded-2xl text-sm">
+            <div id="practice-feedback-text"></div>
+          </div>
+
+          <!-- Practice Next Button -->
+          <div class="flex items-center justify-end pt-2">
+            <button id="practice-next-btn" onclick="App.nextPracticeQuestion()" class="hidden px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl transition flex items-center gap-2 text-sm">
+              <span>Next Practice Question ➔</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- 3. ROADMAP VIEW (100 DAYS) -->
@@ -328,25 +530,29 @@
   </main>
 
   <!-- Elevated Floating Bottom Navigation Bar for Mobile & Smaller Screens -->
-  <nav id="bottom-nav-bar" class="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-2xl border-t border-slate-800/90 px-2 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl md:hidden">
+  <nav id="bottom-nav-bar" class="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-2xl border-t border-slate-800/90 px-1 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] shadow-2xl md:hidden">
     <div class="max-w-md mx-auto flex items-center justify-around text-[10px] font-bold">
-      <button onclick="App.switchView('home')" data-view="home" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 transition py-1 px-3 rounded-xl">
+      <button onclick="App.switchView('home')" data-view="home" class="nav-btn flex flex-col items-center gap-1 text-indigo-400 transition py-1 px-2 rounded-xl">
         <span class="text-xl">🏠</span>
         <span>Home</span>
       </button>
-      <button onclick="App.switchView('roadmap')" data-view="roadmap" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-3 rounded-xl">
+      <button onclick="App.switchView('practice')" data-view="practice" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-2 rounded-xl">
+        <span class="text-xl">🎯</span>
+        <span>Practice</span>
+      </button>
+      <button onclick="App.switchView('roadmap')" data-view="roadmap" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-2 rounded-xl">
         <span class="text-xl">🗺️</span>
         <span>100 Days</span>
       </button>
-      <button onclick="App.switchView('leaderboard')" data-view="leaderboard" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-3 rounded-xl">
+      <button onclick="App.switchView('leaderboard')" data-view="leaderboard" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-2 rounded-xl">
         <span class="text-xl">🏆</span>
         <span>Rankings</span>
       </button>
-      <button onclick="App.switchView('badges')" data-view="badges" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-3 rounded-xl">
+      <button onclick="App.switchView('badges')" data-view="badges" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-2 rounded-xl">
         <span class="text-xl">🎖️</span>
         <span>Badges</span>
       </button>
-      <button onclick="App.switchView('settings')" data-view="settings" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-3 rounded-xl">
+      <button onclick="App.switchView('settings')" data-view="settings" class="nav-btn flex flex-col items-center gap-1 text-slate-400 transition py-1 px-2 rounded-xl">
         <span class="text-xl">⚙️</span>
         <span>Settings</span>
       </button>
@@ -455,8 +661,45 @@
       </div>
 
       <button onclick="App.startQuizFromSetup()" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-xl transition transform active:scale-95 text-base flex items-center justify-center gap-2">
-        <span>Start 20 Questions ➔</span>
+        <span>Start 15 Questions ➔</span>
       </button>
+    </div>
+  </div>
+
+  <!-- 2.5 WORDWALL BONUS ROUND SHUFFLE CARDS MODAL -->
+  <div id="bonus-round-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl hidden items-center justify-center p-4">
+    <div class="max-w-xl w-full bg-slate-900/95 border-2 border-indigo-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center relative overflow-hidden">
+      <!-- Background Ambient Glow -->
+      <div class="absolute -top-20 -left-20 w-52 h-52 bg-pink-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -right-20 w-52 h-52 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Wordwall Title Banner -->
+      <div class="relative space-y-1">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 text-[11px] font-black tracking-widest uppercase">
+          <span>🃏</span> WORDWALL BONUS ROUND
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 drop-shadow-md">
+          BONUS ROUND!
+        </h2>
+        <p id="bonus-instruction-text" class="text-xs sm:text-sm font-bold text-slate-300 transition duration-300">
+          Memorize the cards! Flipping in <span id="bonus-countdown" class="text-amber-400 font-extrabold text-base">3</span>s...
+        </p>
+      </div>
+
+      <!-- 5 Cards Shuffling Arena (Styled like Wordwall screenshot) -->
+      <div id="bonus-cards-grid" class="relative min-h-[220px] sm:min-h-[260px] flex flex-wrap items-center justify-center gap-3 sm:gap-4 py-2">
+        <!-- Injected dynamically: 5 cards with 3D flip and sliding transitions -->
+      </div>
+
+      <!-- Bonus Result Message & Continue Button -->
+      <div id="bonus-action-container" class="space-y-3">
+        <div id="bonus-won-pill" class="hidden p-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-sm font-extrabold animate-bounce">
+          🎉 Awesome! You won <span id="bonus-points-awarded" class="text-white text-base underline">+100 Points</span>!
+        </div>
+        <button id="bonus-continue-btn" onclick="App.continueAfterBonus()" class="hidden w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/30 transition transform active:scale-95 text-base flex items-center justify-center gap-2">
+          <span id="bonus-continue-label">Continue to Next Question (3s)...</span>
+        </button>
+      </div>
     </div>
   </div>
 

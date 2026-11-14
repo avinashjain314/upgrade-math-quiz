@@ -59,7 +59,7 @@ const App = {
 
   switchView(viewName) {
     this.currentView = viewName;
-    const views = ['auth', 'home', 'roadmap', 'quiz', 'leaderboard', 'badges', 'settings'];
+    const views = ['auth', 'home', 'practice', 'roadmap', 'quiz', 'leaderboard', 'badges', 'settings'];
     views.forEach(v => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -89,6 +89,8 @@ const App = {
 
     if (viewName === 'home') {
       this.renderHome();
+    } else if (viewName === 'practice') {
+      this.renderPracticeHub();
     } else if (viewName === 'roadmap') {
       this.renderRoadmap();
     } else if (viewName === 'leaderboard') {
@@ -565,7 +567,8 @@ const App = {
       timerInterval: null,
       autoAdvanceInterval: null,
       totalTimeSpent: 0,
-      isComplete: false
+      isComplete: false,
+      bonusRoundsCompleted: {}
     };
 
     this.switchView('quiz');
@@ -621,9 +624,10 @@ const App = {
     const q = this.quizState.questions[qIdx];
     if (!q) return;
 
+    const totalQ = this.quizState.questions.length || 15;
     document.getElementById('quiz-day-badge').innerText = `Day ${this.quizState.day}`;
-    document.getElementById('quiz-progress-text').innerText = `Question ${qIdx + 1} of 20`;
-    document.getElementById('quiz-progress-bar').style.width = `${((qIdx + 1) / 20) * 100}%`;
+    document.getElementById('quiz-progress-text').innerText = `Question ${qIdx + 1} of ${totalQ}`;
+    document.getElementById('quiz-progress-bar').style.width = `${((qIdx + 1) / totalQ) * 100}%`;
     document.getElementById('quiz-live-score').innerText = `${this.quizState.score} pts`;
 
     const diffBadge = document.getElementById('quiz-diff-badge');
@@ -727,10 +731,18 @@ const App = {
     const nextBtn = document.getElementById('quiz-next-btn');
     nextBtn.classList.remove('hidden');
     let countdown = 3;
-    const isLast = (qIdx === 19);
+    const totalQ = this.quizState.questions.length || 15;
+    const isLast = (qIdx === totalQ - 1);
+    const isBonusTrigger = (qIdx === 4 && !this.quizState.bonusRoundsCompleted[1]) || (qIdx === 9 && !this.quizState.bonusRoundsCompleted[2]);
+    const bonusRoundNum = (qIdx === 4) ? 1 : 2;
 
     const updateCountdownLabel = () => {
-      const label = isLast ? 'Finish & Open Mystery Chest' : 'Next Question';
+      let label = 'Next Question';
+      if (isLast) {
+        label = 'Finish & Open Mystery Chest';
+      } else if (isBonusTrigger) {
+        label = '🃏 Go to Wordwall Bonus Round';
+      }
       nextBtn.innerHTML = `<span>${label} (${countdown}s)...</span> <span class="text-xs opacity-75">(Tap to advance) ➔</span>`;
     };
 
@@ -745,6 +757,8 @@ const App = {
         this.quizState.autoAdvanceInterval = null;
         if (isLast) {
           this.finishQuiz();
+        } else if (isBonusTrigger) {
+          this.openBonusRound(bonusRoundNum);
         } else {
           this.nextQuestion();
         }
@@ -756,7 +770,21 @@ const App = {
     clearInterval(this.quizState.autoAdvanceInterval);
     this.quizState.autoAdvanceInterval = null;
     SoundEngine.playClick();
-    if (this.quizState.currentIndex < 19) {
+
+    const qIdx = this.quizState.currentIndex;
+    const totalQ = this.quizState.questions.length || 15;
+
+    // Check if this was question 5 or 10 and bonus round hasn't fired yet
+    if (qIdx === 4 && !this.quizState.bonusRoundsCompleted[1]) {
+      this.openBonusRound(1);
+      return;
+    }
+    if (qIdx === 9 && !this.quizState.bonusRoundsCompleted[2]) {
+      this.openBonusRound(2);
+      return;
+    }
+
+    if (this.quizState.currentIndex < totalQ - 1) {
       this.quizState.currentIndex++;
       this.renderCurrentQuestion();
       if (this.quizState.timerEnabled) {
@@ -781,7 +809,8 @@ const App = {
 
     const user = Auth.getCurrentUser();
     const correctCount = this.quizState.answers.filter(a => a.isCorrect).length;
-    const accuracy = Math.round((correctCount / 20) * 100);
+    const totalQ = this.quizState.questions.length || 15;
+    const accuracy = Math.round((correctCount / totalQ) * 100);
 
     // Save to Google Sheet & Local Storage
     await SheetSync.submitQuiz({
@@ -799,7 +828,7 @@ const App = {
     this.renderHeaderUser();
 
     document.getElementById('result-score-text').innerText = `${this.quizState.score} Points`;
-    document.getElementById('result-accuracy-text').innerText = `${correctCount}/20 Correct (${accuracy}%)`;
+    document.getElementById('result-accuracy-text').innerText = `${correctCount}/${totalQ} Correct (${accuracy}%)`;
     document.getElementById('result-day-text').innerText = `Day ${this.quizState.day} Completed!`;
 
     const wisdom = getDailyWisdom(this.quizState.day);
@@ -1328,6 +1357,375 @@ const App = {
       };
     }
   }
+  // -------------------------------------------------------------
+  // WORDWALL SHUFFLE CARDS BONUS ROUND MINIGAME
+  // -------------------------------------------------------------
+  bonusState: {
+    roundNum: 1,
+    cards: [],
+    slots: [0, 1, 2, 3, 4],
+    isPickable: false,
+    selectedId: null,
+    countdownInterval: null,
+    autoAdvanceInterval: null
+  },
+
+  openBonusRound(roundNum) {
+    clearInterval(this.quizState.autoAdvanceInterval);
+    clearInterval(this.quizState.timerInterval);
+    this.quizState.bonusRoundsCompleted[roundNum] = true;
+
+    this.bonusState.roundNum = roundNum;
+    this.bonusState.isPickable = false;
+    this.bonusState.selectedId = null;
+    clearInterval(this.bonusState.countdownInterval);
+    clearInterval(this.bonusState.autoAdvanceInterval);
+
+    // Prepare 5 bonus cards
+    const baseCards = (roundNum === 1) ? [
+      { id: 0, label: '+50', points: 50, type: 'pts', bg: 'from-emerald-600 to-teal-700' },
+      { id: 1, label: '+100', points: 100, type: 'pts', bg: 'from-emerald-500 to-green-700' },
+      { id: 2, label: '+150', points: 150, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
+      { id: 3, label: '+200', points: 200, type: 'pts', bg: 'from-purple-600 to-pink-700' },
+      { id: 4, label: 'x2 SPEED', points: 100, type: 'speed', bg: 'from-rose-600 to-red-700' }
+    ] : [
+      { id: 0, label: '+75', points: 75, type: 'pts', bg: 'from-emerald-600 to-teal-700' },
+      { id: 1, label: '+100', points: 100, type: 'pts', bg: 'from-emerald-500 to-green-700' },
+      { id: 2, label: '+150', points: 150, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
+      { id: 3, label: '+250', points: 250, type: 'pts', bg: 'from-purple-600 to-pink-700' },
+      { id: 4, label: 'x2 SPEED', points: 150, type: 'speed', bg: 'from-rose-600 to-red-700' }
+    ];
+
+    // Fisher-Yates shuffle
+    for (let i = baseCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [baseCards[i], baseCards[j]] = [baseCards[j], baseCards[i]];
+    }
+    this.bonusState.cards = baseCards;
+    this.bonusState.slots = [0, 1, 2, 3, 4];
+
+    // Reset UI
+    const modal = document.getElementById('bonus-round-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    document.getElementById('bonus-won-pill').classList.add('hidden');
+    document.getElementById('bonus-continue-btn').classList.add('hidden');
+
+    const instruction = document.getElementById('bonus-instruction-text');
+    let previewSeconds = 3;
+    instruction.innerHTML = `Memorize the cards! Flipping in <span id="bonus-countdown" class="text-amber-400 font-extrabold text-base">${previewSeconds}</span>s...`;
+
+    this.renderBonusCards(false);
+
+    this.bonusState.countdownInterval = setInterval(() => {
+      previewSeconds--;
+      const countEl = document.getElementById('bonus-countdown');
+      if (countEl) countEl.innerText = previewSeconds;
+
+      if (previewSeconds <= 0) {
+        clearInterval(this.bonusState.countdownInterval);
+        this.flipAndShuffleBonusCards();
+      }
+    }, 1000);
+  },
+
+  renderBonusCards(isFlipped = false) {
+    const grid = document.getElementById('bonus-cards-grid');
+    grid.innerHTML = '';
+
+    this.bonusState.cards.forEach((card) => {
+      const cardEl = document.createElement('div');
+      cardEl.id = `bonus-card-${card.id}`;
+      cardEl.dataset.cardId = card.id;
+      cardEl.className = 'bonus-scene w-28 sm:w-36 h-40 sm:h-48 select-none transition-transform duration-300';
+
+      cardEl.innerHTML = `
+        <div class="bonus-card-container relative w-full h-full rounded-2xl shadow-xl transition-all duration-500 ${isFlipped ? 'is-flipped' : ''}">
+          <!-- Front Face (Points / Modifier Reward) -->
+          <div class="bonus-card-face absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-b ${card.bg} border-2 border-white/40 p-3 flex flex-col items-center justify-between shadow-2xl text-white">
+            <span class="text-[10px] font-black uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full">
+              ${card.type === 'speed' ? '⚡ MODIFIER' : '⭐ BONUS'}
+            </span>
+            <div class="text-center my-auto">
+              <p class="text-2xl sm:text-3xl font-black drop-shadow tracking-tight">${card.label}</p>
+              <p class="text-[11px] font-bold opacity-90">${card.type === 'speed' ? 'Speed' : 'Points'}</p>
+            </div>
+            <div class="w-2 h-2 rounded-full bg-white/60"></div>
+          </div>
+
+          <!-- Back Face (Dark Navy with Cyan Question Mark, styled like Wordwall) -->
+          <div class="bonus-card-face bonus-card-back absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 border-2 border-slate-700/80 p-3 flex flex-col items-center justify-center shadow-2xl">
+            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-950/80 border border-cyan-500/40 flex items-center justify-center text-3xl sm:text-4xl font-black text-cyan-300 drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]">
+              ?
+            </div>
+            <p class="text-[10px] font-bold text-slate-400 mt-2 tracking-widest uppercase">UPGRADE</p>
+          </div>
+        </div>
+      `;
+
+      cardEl.onclick = () => {
+        if (this.bonusState.isPickable) {
+          this.pickBonusCard(card.id);
+        }
+      };
+
+      grid.appendChild(cardEl);
+    });
+  },
+
+  flipAndShuffleBonusCards() {
+    SoundEngine.playCardFlip();
+    const instruction = document.getElementById('bonus-instruction-text');
+    instruction.innerText = '👀 Keep your eyes on the cards! Shuffling...';
+
+    // Flip all cards to face down (?)
+    document.querySelectorAll('.bonus-card-container').forEach(c => c.classList.add('is-flipped'));
+
+    setTimeout(() => {
+      let swapsDone = 0;
+      const totalSwaps = 5;
+
+      const shuffleInterval = setInterval(() => {
+        swapsDone++;
+        SoundEngine.playCardShuffle();
+
+        const grid = document.getElementById('bonus-cards-grid');
+        const cardElements = Array.from(grid.children);
+        if (cardElements.length < 2) return;
+
+        const i = Math.floor(Math.random() * cardElements.length);
+        let j = Math.floor(Math.random() * cardElements.length);
+        while (j === i) j = Math.floor(Math.random() * cardElements.length);
+
+        const cardA = cardElements[i];
+        const cardB = cardElements[j];
+
+        cardA.style.transform = 'scale(0.92) translateY(-8px)';
+        cardB.style.transform = 'scale(0.92) translateY(8px)';
+
+        setTimeout(() => {
+          const nextA = cardA.nextSibling;
+          if (nextA === cardB) {
+            grid.insertBefore(cardB, cardA);
+          } else {
+            grid.insertBefore(cardA, cardB);
+            if (nextA) grid.insertBefore(cardB, nextA);
+          }
+          cardA.style.transform = '';
+          cardB.style.transform = '';
+        }, 160);
+
+        if (swapsDone >= totalSwaps) {
+          clearInterval(shuffleInterval);
+          setTimeout(() => {
+            this.bonusState.isPickable = true;
+            instruction.innerHTML = '👉 <strong class="text-amber-300 font-extrabold text-base">Pick a card</strong> to claim your bonus!';
+            document.querySelectorAll('.bonus-card-container').forEach(c => c.classList.add('bonus-card-pickable'));
+          }, 350);
+        }
+      }, 340);
+    }, 550);
+  },
+
+  pickBonusCard(cardId) {
+    if (!this.bonusState.isPickable) return;
+    this.bonusState.isPickable = false;
+    this.bonusState.selectedId = cardId;
+
+    const selectedCard = this.bonusState.cards.find(c => c.id === cardId);
+    if (!selectedCard) return;
+
+    SoundEngine.playBonusWin();
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.5 } });
+    }
+
+    const cardElements = document.querySelectorAll('.bonus-scene');
+    cardElements.forEach(cardEl => {
+      const cId = parseInt(cardEl.dataset.cardId, 10);
+      const container = cardEl.querySelector('.bonus-card-container');
+      container.classList.remove('bonus-card-pickable');
+
+      if (cId === cardId) {
+        container.classList.remove('is-flipped');
+        container.classList.add('ring-4', 'ring-amber-400', 'scale-105');
+      } else {
+        setTimeout(() => {
+          container.classList.remove('is-flipped');
+          cardEl.classList.add('opacity-40');
+        }, 350);
+      }
+    });
+
+    const pointsWon = selectedCard.points;
+    this.quizState.score += pointsWon;
+    document.getElementById('quiz-live-score').innerText = `${this.quizState.score} pts`;
+
+    const wonPill = document.getElementById('bonus-won-pill');
+    wonPill.classList.remove('hidden');
+    document.getElementById('bonus-points-awarded').innerText = `${selectedCard.label} (${pointsWon} Pts)`;
+
+    const continueBtn = document.getElementById('bonus-continue-btn');
+    const continueLabel = document.getElementById('bonus-continue-label');
+    continueBtn.classList.remove('hidden');
+
+    let countdown = 3;
+    const nextQNum = this.quizState.currentIndex + 2;
+    continueLabel.innerText = `Continue to Question ${nextQNum} (${countdown}s)... ➔`;
+
+    this.bonusState.autoAdvanceInterval = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        continueLabel.innerText = `Continue to Question ${nextQNum} (${countdown}s)... ➔`;
+      } else {
+        clearInterval(this.bonusState.autoAdvanceInterval);
+        this.continueAfterBonus();
+      }
+    }, 1000);
+  },
+
+  continueAfterBonus() {
+    clearInterval(this.bonusState.autoAdvanceInterval);
+    clearInterval(this.bonusState.countdownInterval);
+
+    const modal = document.getElementById('bonus-round-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+
+    this.quizState.currentIndex++;
+    this.renderCurrentQuestion();
+    if (this.quizState.timerEnabled) {
+      this.startQuestionTimer();
+    }
+  },
+
+  // -------------------------------------------------------------
+  // PRACTICE ARENA (UNGRADED TOPIC MASTERY)
+  // -------------------------------------------------------------
+  practiceState: {
+    topicKey: null,
+    topicName: '',
+    question: null,
+    streak: 0,
+    totalAnswered: 0
+  },
+
+  renderPracticeHub() {
+    document.getElementById('practice-hub-container').classList.remove('hidden');
+    document.getElementById('practice-player-container').classList.add('hidden');
+  },
+
+  startPracticeTopic(topicKey) {
+    SoundEngine.playClick();
+    this.practiceState.topicKey = topicKey;
+    this.practiceState.streak = 0;
+    this.practiceState.totalAnswered = 0;
+
+    const topicTitles = {
+      fractions: 'Fractions',
+      decimals: 'Decimals',
+      addition: 'Addition',
+      subtraction: 'Subtraction',
+      division: 'Division',
+      multiplication: 'Multiplication',
+      ratio: 'Ratio & Proportion',
+      wordproblems: 'Word Problems',
+      percentage: 'Percentage',
+      bodmas: 'BODMAS'
+    };
+    this.practiceState.topicName = topicTitles[topicKey] || 'Math Practice';
+
+    document.getElementById('practice-hub-container').classList.add('hidden');
+    document.getElementById('practice-player-container').classList.remove('hidden');
+
+    document.getElementById('practice-topic-badge').innerText = this.practiceState.topicName;
+    document.getElementById('practice-streak-counter').innerText = '0';
+
+    this.nextPracticeQuestion();
+  },
+
+  nextPracticeQuestion() {
+    SoundEngine.playClick();
+    const user = Auth.getCurrentUser();
+    const levelCode = (user && user.level && user.level.toLowerCase().includes('senior')) ? 'senior' : 'junior';
+
+    const q = QuestionEngine.generatePracticeQuestion(this.practiceState.topicKey, levelCode);
+    this.practiceState.question = q;
+
+    document.getElementById('practice-question-text').innerText = q.questionText;
+    document.getElementById('practice-difficulty-badge').innerText = `🟢 ${q.difficulty.toUpperCase()} Level`;
+
+    const optionsGrid = document.getElementById('practice-options-grid');
+    optionsGrid.innerHTML = '';
+    const optionLetters = ['A', 'B', 'C', 'D'];
+
+    q.options.forEach((optText, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'practice-option-btn w-full p-4 text-left rounded-2xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800 text-slate-100 font-semibold transition duration-150 transform hover:-translate-y-0.5 flex items-center gap-4';
+      btn.innerHTML = `
+        <span class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm text-indigo-400 shrink-0">
+          ${optionLetters[i]}
+        </span>
+        <span class="text-base">${optText}</span>
+      `;
+      btn.onclick = () => this.selectPracticeAnswer(i);
+      optionsGrid.appendChild(btn);
+    });
+
+    document.getElementById('practice-feedback-box').classList.add('hidden');
+    document.getElementById('practice-next-btn').classList.add('hidden');
+  },
+
+  selectPracticeAnswer(selectedIdx) {
+    const q = this.practiceState.question;
+    if (!q) return;
+
+    const isCorrect = (selectedIdx === q.correctIndex);
+    this.practiceState.totalAnswered++;
+
+    if (isCorrect) {
+      this.practiceState.streak++;
+      SoundEngine.playCorrect();
+    } else {
+      this.practiceState.streak = 0;
+      SoundEngine.playIncorrect();
+    }
+
+    document.getElementById('practice-streak-counter').innerText = this.practiceState.streak;
+
+    const optionButtons = document.querySelectorAll('.practice-option-btn');
+    optionButtons.forEach((btn, i) => {
+      btn.disabled = true;
+      if (i === q.correctIndex) {
+        btn.className = 'w-full p-4 text-left rounded-2xl border-2 border-emerald-500 bg-emerald-950/60 text-white font-bold flex items-center gap-4';
+      } else if (i === selectedIdx && !isCorrect) {
+        btn.className = 'w-full p-4 text-left rounded-2xl border-2 border-rose-500 bg-rose-950/60 text-white font-bold flex items-center gap-4';
+      } else {
+        btn.className = 'w-full p-4 text-left rounded-2xl border border-slate-800 bg-slate-950/40 text-slate-500 opacity-60 flex items-center gap-4';
+      }
+    });
+
+    const feedbackBox = document.getElementById('practice-feedback-box');
+    const feedbackText = document.getElementById('practice-feedback-text');
+    feedbackBox.classList.remove('hidden');
+
+    if (isCorrect) {
+      feedbackBox.className = 'p-4 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-sm';
+      feedbackText.innerHTML = `<strong>🎉 Excellent! Correct!</strong><br>${q.explanation}`;
+    } else {
+      feedbackBox.className = 'p-4 rounded-2xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-sm';
+      feedbackText.innerHTML = `<strong>❌ Keep Learning!</strong> Correct Answer: <em>${q.correctAnswer}</em><br>${q.explanation}`;
+    }
+
+    document.getElementById('practice-next-btn').classList.remove('hidden');
+  },
+
+  exitPractice() {
+    SoundEngine.playClick();
+    this.renderPracticeHub();
+  },
+
 };
 
 window.addEventListener('DOMContentLoaded', () => {

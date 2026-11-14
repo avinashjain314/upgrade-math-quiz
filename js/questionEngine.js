@@ -36,27 +36,31 @@ function hashString(str) {
 
 const QuestionEngine = {
   /**
-   * Generates a 20-question quiz for a specific day and level track
+   * Generates a 15-question quiz for a specific day and level track
+   * 5 Easy (Bonus Round 1) -> 5 Medium (Bonus Round 2) -> 5 Hard (Mystery Chest)
    * @param {number} day - 1 to 100
    * @param {string} level - 'junior' or 'senior'
-   * @returns {Array} List of 20 question objects
+   * @returns {Array} List of 15 question objects
    */
   generateDailyQuiz(day, level = 'junior') {
     const questions = [];
     const baseSeed = (day * 9301 + 49297) ^ (level === 'senior' ? 0xABCDEF : 0x123456);
 
-    for (let qIdx = 1; qIdx <= 20; qIdx++) {
+    for (let qIdx = 1; qIdx <= 15; qIdx++) {
       // Deterministic PRNG for this specific question
       const qSeed = (baseSeed + (qIdx * 12345)) >>> 0;
       const rng = mulberry32(qSeed);
 
-      // Determine difficulty
+      // Strict Difficulty Curve for 15 questions:
+      // Q1-Q5: Easy (10 pts) -> Wordwall Bonus Round 1!
+      // Q6-Q10: Medium (20 pts) -> Wordwall Bonus Round 2!
+      // Q11-Q15: Hard (30 pts) -> Mystery Chest Result!
       let difficulty = 'easy';
       let points = 10;
       if (qIdx <= 5) {
         difficulty = 'easy';
         points = 10;
-      } else if (qIdx <= 12) {
+      } else if (qIdx <= 10) {
         difficulty = 'medium';
         points = 20;
       } else {
@@ -64,8 +68,8 @@ const QuestionEngine = {
         points = 30;
       }
 
-      // Check if this should be a surprise trivia question (e.g., question 4 or 11)
-      const isTriviaSlot = (qIdx === 4 || (qIdx === 11 && day % 2 === 0));
+      // Check if this should be a surprise trivia question (e.g., question 4 or 9)
+      const isTriviaSlot = (qIdx === 4 || (qIdx === 9 && day % 2 === 0));
       let qObj = null;
 
       if (isTriviaSlot && typeof getTriviaQuestion === 'function') {
@@ -85,6 +89,70 @@ const QuestionEngine = {
     }
 
     return questions;
+  },
+
+  /**
+   * Generates a single infinite procedural practice question for any of the 10 practice topics
+   * Zero leaderboard impact, perfect for targeted student mastery
+   * @param {string} topicKey - fractions, decimals, addition, subtraction, division, multiplication, ratio, wordproblems, percentage, bodmas
+   * @param {string} level - 'junior' or 'senior'
+   * @returns {Object} question object
+   */
+  generatePracticeQuestion(topicKey, level = 'junior') {
+    const seed = (Date.now() + Math.floor(Math.random() * 1000000)) >>> 0;
+    const rng = mulberry32(seed);
+    const day = Math.floor(rng() * 100) + 1;
+    const diffRoll = rng();
+    const difficulty = diffRoll < 0.35 ? 'easy' : (diffRoll < 0.75 ? 'medium' : 'hard');
+    const isSenior = String(level).toLowerCase().includes('senior');
+
+    let qObj = null;
+    const key = String(topicKey || '').toLowerCase().replace(/[^a-z]/g, '');
+
+    switch (key) {
+      case 'fractions':
+        qObj = JuniorMath.genFractions(day, difficulty, rng);
+        break;
+      case 'decimals':
+        qObj = JuniorMath.genDecimals(day, difficulty, rng);
+        break;
+      case 'addition':
+        qObj = isSenior ? SeniorMath.genIntegers(day, difficulty, rng) : JuniorMath.genAddition(day, difficulty, rng);
+        break;
+      case 'subtraction':
+        qObj = isSenior ? SeniorMath.genIntegers(day, difficulty, rng) : JuniorMath.genSubtraction(day, difficulty, rng);
+        break;
+      case 'multiplication':
+        qObj = JuniorMath.genMultiplication(day, difficulty, rng);
+        break;
+      case 'division':
+        qObj = JuniorMath.genDivision(day, difficulty, rng);
+        break;
+      case 'ratio':
+      case 'ratios':
+        qObj = SeniorMath.genRatios(day, difficulty, rng);
+        break;
+      case 'wordproblems':
+      case 'wordproblem':
+        qObj = isSenior ? SeniorMath.genUnitaryAndConversions(day, difficulty, rng) : JuniorMath.genWordProblem(day, difficulty, rng);
+        break;
+      case 'percentage':
+      case 'percentages':
+        qObj = SeniorMath.genPercentages(day, difficulty, rng);
+        break;
+      case 'bodmas':
+        qObj = SeniorMath.genBODMAS(day, difficulty, rng);
+        break;
+      default:
+        qObj = JuniorMath.genAddition(day, difficulty, rng);
+        break;
+    }
+
+    qObj.difficulty = difficulty;
+    qObj.points = difficulty === 'easy' ? 10 : (difficulty === 'medium' ? 20 : 30);
+    qObj.isPractice = true;
+    qObj.topicKey = key;
+    return qObj;
   },
 
   /**
