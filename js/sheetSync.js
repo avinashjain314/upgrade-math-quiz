@@ -536,7 +536,7 @@ const SheetSync = {
 
     const scriptUrl = this.getScriptUrl();
     if (scriptUrl && navigator.onLine) {
-      // 1. Send via POST with JSON body (handles Base64 images cleanly)
+      // Send via POST with JSON body (handles Base64 screenshots cleanly to Google Drive)
       try {
         await fetch(scriptUrl, {
           method: 'POST',
@@ -544,21 +544,9 @@ const SheetSync = {
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
-      } catch (e) {}
-
-      // 2. Also send lightweight GET ping for serverless instant wakeup
-      try {
-        const pingPayload = {
-          action: 'payment_submitted',
-          phone: cleanPhone,
-          studentName: payload.studentName,
-          level: payload.level,
-          amount: '200',
-          utr: 'Screenshot Submitted'
-        };
-        const qs = new URLSearchParams(pingPayload).toString();
-        fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, { mode: 'no-cors' }).catch(() => {});
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Payment submit POST warning:', e);
+      }
     }
 
     return { success: true };

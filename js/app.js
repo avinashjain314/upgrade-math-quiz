@@ -1443,7 +1443,7 @@ const App = {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const maxDim = 1200;
+        const maxDim = 900;
         let w = img.width;
         let h = img.height;
         if (w > maxDim || h > maxDim) {
@@ -1459,7 +1459,7 @@ const App = {
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
 
         this.paymentScreenshotData = compressedDataUrl;
 

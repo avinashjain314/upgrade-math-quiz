@@ -38,6 +38,50 @@ const COACHING_STUDENTS = [
 ];
 
 /**
+ * ⚠️ ONE-TIME PERMISSIONS AUTHORIZATION (RUN THIS IN APPS SCRIPT EDITOR)
+ * Select "authorizeServices" from the toolbar dropdown and click "Run" ▶️.
+ * This permanently grants Google Drive & Email permissions to this script!
+ */
+function authorizeServices() {
+  Logger.log("Starting Google Drive and Email authorization test...");
+  
+  // 1. Test DriveApp Folder & File Creation
+  const folderName = 'Upgrade_Quiz_Payments';
+  let folder;
+  const folders = DriveApp.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(folderName);
+  }
+  const testBlob = Utilities.newBlob("Upgrade Math Quiz Authorization Test", "text/plain", "auth_test.txt");
+  const testFile = folder.createFile(testBlob);
+  testFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  testFile.setTrashed(true);
+  Logger.log("✅ Google Drive permission is fully authorized! Test file created & cleaned up.");
+
+  // 2. Test MailApp Email Sending
+  MailApp.sendEmail({
+    to: 'avinashjain314@gmail.com',
+    subject: '✅ [Upgrade Math Quiz] Permissions Successfully Authorized!',
+    htmlBody: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #10b981; border-radius: 12px; background: #ecfdf5;">
+        <h2 style="color: #047857; margin-top: 0;">🎉 Permissions Successfully Authorized!</h2>
+        <p>Hello Avinash Sir,</p>
+        <p>Your Google Apps Script backend is now fully authorized to:</p>
+        <ul>
+          <li><strong>Save payment screenshots</strong> to your Google Drive folder (<code>Upgrade_Quiz_Payments</code>).</li>
+          <li><strong>Create clickable screenshot links</strong> in Column E of your Google Sheet.</li>
+          <li><strong>Send you instant email notifications</strong> with payment screenshot attachments whenever a parent registers or pays.</li>
+        </ul>
+        <p style="color: #065f46; font-weight: bold;">Everything is set up and production-ready! 🚀</p>
+      </div>
+    `
+  });
+  Logger.log("✅ MailApp permission is fully authorized! Test email sent to avinashjain314@gmail.com.");
+}
+
+/**
  * Robust phone number comparison:
  * Handles international codes (+64, 64, +61, 61, +91, 91) and leading zeros (020..., 021...)
  */
@@ -495,17 +539,25 @@ function handlePaymentSubmitted(data) {
     sheet = getStudentSheet(ss);
   }
 
-  // 1. Process & Save Payment Screenshot to Google Drive
+  // 1. Process & Save Payment Screenshot to Google Drive in folder 'Upgrade_Quiz_Payments'
   let screenshotUrl = '';
+  let screenshotBlob = null;
   if (screenshotData && screenshotData.indexOf('base64,') !== -1) {
     try {
       const base64Str = screenshotData.split('base64,')[1];
       const decoded = Utilities.base64Decode(base64Str);
       const mimeType = screenshotData.includes('image/png') ? 'image/png' : 'image/jpeg';
       const ext = mimeType === 'image/png' ? '.png' : '.jpg';
-      const blob = Utilities.newBlob(decoded, mimeType, 'Payment_' + phone + '_' + Date.now() + ext);
+      screenshotBlob = Utilities.newBlob(decoded, mimeType, 'Payment_' + phone + '_' + Date.now() + ext);
       
-      const file = DriveApp.createFile(blob);
+      let folder;
+      const folders = DriveApp.getFoldersByName('Upgrade_Quiz_Payments');
+      if (folders.hasNext()) {
+        folder = folders.next();
+      } else {
+        folder = DriveApp.createFolder('Upgrade_Quiz_Payments');
+      }
+      const file = folder.createFile(screenshotBlob);
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       screenshotUrl = file.getUrl();
     } catch (driveErr) {
@@ -526,11 +578,22 @@ function handlePaymentSubmitted(data) {
   const now = new Date();
   const overrideVal = screenshotUrl 
     ? '=HYPERLINK("' + screenshotUrl + '", "📸 View Payment Screenshot")'
-    : (utr ? 'UTR: ' + utr + ' (Rs ' + amount + ')' : 'Screenshot Uploaded (Rs ' + amount + ')');
+    : (utr && utr !== 'Screenshot Submitted' ? 'UTR: ' + utr + ' (Rs ' + amount + ')' : 'Payment Screenshot Submitted (Rs ' + amount + ')');
 
   if (rowIndex > 0) {
     sheet.getRange(rowIndex, 4).setValue('PENDING_APPROVAL');
-    sheet.getRange(rowIndex, 5).setValue(overrideVal);
+    
+    // Set formula if hyperlink, otherwise value; never overwrite existing screenshot link if no new link
+    const currentVal = String(sheet.getRange(rowIndex, 5).getValue() || '');
+    if (screenshotUrl) {
+      sheet.getRange(rowIndex, 5).setFormula(overrideVal);
+    } else if (!currentVal.includes('HYPERLINK') && !currentVal.includes('drive.google.com')) {
+      if (overrideVal.startsWith('=')) {
+        sheet.getRange(rowIndex, 5).setFormula(overrideVal);
+      } else {
+        sheet.getRange(rowIndex, 5).setValue(overrideVal);
+      }
+    }
     sheet.getRange(rowIndex, 10).setValue(now.toISOString());
   } else {
     const newRow = [
@@ -545,10 +608,14 @@ function handlePaymentSubmitted(data) {
     ];
     for (let d = 1; d <= 100; d++) newRow.push('Not Attempted');
     sheet.appendRow(newRow);
+    const lastRow = sheet.getLastRow();
+    if (overrideVal.startsWith('=')) {
+      sheet.getRange(lastRow, 5).setFormula(overrideVal);
+    }
   }
   SpreadsheetApp.flush();
 
-  // 2. Send Instant Email Notification directly to Avinash Sir
+  // 2. Send Instant Email Notification directly to Avinash Sir WITH Screenshot Attachment
   try {
     const adminEmail = 'avinashjain314@gmail.com';
     const subject = "📸 [Upgrade Math Quiz] New Payment Screenshot: " + name + " (" + phone + ")";
@@ -569,7 +636,7 @@ function handlePaymentSubmitted(data) {
         <div style="background: #eef2ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <p style="margin: 0; color: #3730a3; font-weight: bold;">How to Activate this Student:</p>
           <ol style="margin: 8px 0 0 20px; color: #4338ca; padding: 0; line-height: 1.6;">
-            <li>View the payment screenshot via the button above.</li>
+            <li>View the attached payment screenshot or click the button above.</li>
             <li>Open your Google Sheet or use your in-app <strong>Student Management Desk</strong>.</li>
             <li>In <strong>Column D (Status)</strong>, change <code>PENDING_APPROVAL</code> to <strong><code>ACTIVE</code></strong>.</li>
           </ol>
@@ -578,11 +645,16 @@ function handlePaymentSubmitted(data) {
         <p><a href="${ss.getUrl()}" target="_blank" style="background: #4f46e5; color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">📊 Open Upgrade_Digital_Quiz Google Sheet</a></p>
       </div>
     `;
-    MailApp.sendEmail({
+    
+    const emailOptions = {
       to: adminEmail,
       subject: subject,
       htmlBody: htmlBody
-    });
+    };
+    if (screenshotBlob) {
+      emailOptions.attachments = [screenshotBlob];
+    }
+    MailApp.sendEmail(emailOptions);
   } catch (mailErr) {
     Logger.log("Payment email send error: " + mailErr);
   }
