@@ -28,14 +28,35 @@ const COACHING_STUDENTS = [
   '64221910852',     // Student 4 (New Zealand)
   '64211489307',     // Student 5 (New Zealand)
   '6195393482',      // Student 6 (International)
-  '642041151177',    // Student 7 (New Zealand)
-  '64211452785',     // Student 8 (New Zealand)
+  '642041151177',    // Student 7 (New Zealand - International)
+  '02041151177',     // Student 7 (New Zealand - Local format)
+  '64211452785',     // Student 8 (New Zealand - International)
+  '0211452785',      // Student 8 (New Zealand - Local format)
   '1524055873',      // Student 9 (Coaching Student)
   '9179799355',      // Avinash Sir (Admin)
-  '9999999999',      // Admin Passcode Demo
-  '9876543210',      // Demo Student (Sara)
-  '9876543211'       // Demo Student (Aarav)
+  '9999999999'       // Admin Passcode Demo
 ];
+
+/**
+ * Robust phone number comparison:
+ * Handles international codes (+64, 64, +61, 61, +91, 91) and leading zeros (020..., 021...)
+ */
+function phonesMatch(phoneA, phoneB) {
+  if (!phoneA || !phoneB) return false;
+  var a = String(phoneA).replace(/\D/g, '');
+  var b = String(phoneB).replace(/\D/g, '');
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 8 && b.length >= 8) {
+    if (a.endsWith(b) || b.endsWith(a)) return true;
+    var cleanA = a.replace(/^0+/, '');
+    var cleanB = b.replace(/^0+/, '');
+    if (cleanA.length >= 8 && cleanB.length >= 8) {
+      if (cleanA.endsWith(cleanB) || cleanB.endsWith(cleanA)) return true;
+    }
+  }
+  return false;
+}
 
 function isCoachingStudent(phone) {
   if (!phone) return false;
@@ -43,19 +64,7 @@ function isCoachingStudent(phone) {
   if (!clean || clean.length < 8) return false;
 
   for (var i = 0; i < COACHING_STUDENTS.length; i++) {
-    var p = COACHING_STUDENTS[i].replace(/\D/g, '');
-    if (clean === p) return true;
-    if (clean.length >= 8 && p.length >= 8) {
-      if (clean.indexOf(p) !== -1 || p.indexOf(clean) !== -1) return true;
-      // Match without leading zeros (e.g. 0469606997 vs 61469606997)
-      var localClean = clean.replace(/^0+/, '');
-      var localP = p.replace(/^0+/, '');
-      if (localClean.length >= 8 && localP.length >= 8) {
-        if (p.slice(-localClean.length) === localClean || clean.slice(-localP.length) === localP) {
-          return true;
-        }
-      }
-    }
+    if (phonesMatch(clean, COACHING_STUDENTS[i])) return true;
   }
   return false;
 }
@@ -149,39 +158,6 @@ function setupSheets() {
     studentSheet.getRange(2, 3, 500, 1).setDataValidation(levelRule);
   } catch (e) {
     Logger.log('Validation rule set: ' + e);
-  }
-  
-  // Add sample students if table is empty
-  if (studentSheet.getLastRow() === 1) {
-    const sampleRow1 = [
-      '9876543210',
-      'Sara (Demo)',
-      'Junior (Grade 1-4)',
-      'ACTIVE',
-      'None',
-      420,
-      1,
-      1,
-      new Date().toISOString(),
-      new Date().toISOString()
-    ];
-    for (let d = 1; d <= 100; d++) sampleRow1.push('Not Attempted');
-    studentSheet.appendRow(sampleRow1);
-    
-    const sampleRow2 = [
-      '9876543211',
-      'Aarav (Demo)',
-      'Senior (Grade 4-10)',
-      'ACTIVE',
-      'All Past Days',
-      0,
-      0,
-      0,
-      new Date().toISOString(),
-      new Date().toISOString()
-    ];
-    for (let d = 1; d <= 100; d++) sampleRow2.push('Not Attempted');
-    studentSheet.appendRow(sampleRow2);
   }
   
   // 2. Setup Quiz_Submissions Sheet
@@ -313,7 +289,7 @@ function handleVerify(phone, autoRegister) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     const rowPhone = String(data[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === cleanPhone) {
+    if (phonesMatch(rowPhone, cleanPhone)) {
       // Collect attempted days from columns 11 to 110 (Day_1 to Day_100)
       const attemptedDays = {};
       for (let d = 1; d <= 100; d++) {
@@ -406,7 +382,7 @@ function handleRegister(data) {
   const existingData = sheet.getDataRange().getValues();
   for (let i = 1; i < existingData.length; i++) {
     const rowPhone = String(existingData[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === phone || (rowPhone.length >= 8 && phone.length >= 8 && (rowPhone.slice(-8) === phone.slice(-8)))) {
+    if (phonesMatch(rowPhone, phone)) {
       sheet.getRange(i + 1, 2).setValue(name);
       sheet.getRange(i + 1, 3).setValue(level);
       if (isCoachingStudent(phone)) {
@@ -496,7 +472,7 @@ function handlePaymentSubmitted(data) {
   let rowIndex = -1;
   for (let i = 1; i < dataRows.length; i++) {
     const rowPhone = String(dataRows[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === phone) {
+    if (phonesMatch(rowPhone, phone)) {
       rowIndex = i + 1;
       break;
     }
@@ -577,6 +553,8 @@ function handleUpdateProfile(params) {
   const newName = String(params.name || '').trim();
   const newLevel = String(params.level || '').trim();
   const newStatus = String(params.status || '').trim();
+  const newOverride = (params.adminUnlockOverride !== undefined) ? String(params.adminUnlockOverride).trim() : null;
+  const resetDayNum = Number(params.resetDay || params.makeDayActive || 0);
 
   if (!phone) {
     return jsonResponse({ status: 'error', message: 'Phone number is required.' });
@@ -592,7 +570,7 @@ function handleUpdateProfile(params) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     const rowPhone = String(data[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === phone) {
+    if (phonesMatch(rowPhone, phone)) {
       const rowIdx = i + 1; // 1-based sheet row
 
       // Update Column 2 (Student Name) if provided
@@ -607,18 +585,60 @@ function handleUpdateProfile(params) {
       if (newStatus) {
         sheet.getRange(rowIdx, 4).setValue(newStatus);
       }
+      // Update Column 5 (Admin_Unlock_Override) if provided
+      let currentOverride = String(data[i][4] || 'None').trim();
+      if (newOverride !== null) {
+        sheet.getRange(rowIdx, 5).setValue(newOverride);
+        currentOverride = newOverride;
+      }
+
+      // If Avinash Sir is reactivating a specific missed quiz (1-100)
+      if (resetDayNum >= 1 && resetDayNum <= 100) {
+        // Reset that day's column to 'Not Attempted'
+        sheet.getRange(rowIdx, 10 + resetDayNum).setValue('Not Attempted');
+
+        // Also ensure that day is included in Admin_Unlock_Override so student can take it immediately
+        if (currentOverride === 'None' || !currentOverride) {
+          currentOverride = String(resetDayNum);
+        } else if (currentOverride !== 'All Past Days') {
+          const daysArr = currentOverride.split(',').map(s => s.trim());
+          if (!daysArr.includes(String(resetDayNum))) {
+            daysArr.push(String(resetDayNum));
+            currentOverride = daysArr.join(',');
+          }
+        }
+        sheet.getRange(rowIdx, 5).setValue(currentOverride);
+      }
+
       // Update Column 10 (Last Active Date)
       sheet.getRange(rowIdx, 10).setValue(new Date().toISOString());
       SpreadsheetApp.flush();
 
+      // Read fresh attempted days
+      const freshRow = sheet.getRange(rowIdx, 1, 1, 110).getValues()[0];
+      const freshAttempted = {};
+      for (let d = 1; d <= 100; d++) {
+        const val = String(freshRow[9 + d] || '').trim();
+        if (isDayAlreadyAttempted(val)) {
+          freshAttempted[d] = val;
+        }
+      }
+
       return jsonResponse({
         status: 'success',
-        message: 'Profile updated successfully for ' + phone,
+        message: (resetDayNum > 0)
+          ? `Day ${resetDayNum} has been activated for ${phone}! Student can now take this quiz.`
+          : 'Profile updated successfully for ' + phone,
         student: {
           phone: phone,
           name: newName || data[i][1],
           level: newLevel || data[i][2],
-          accessStatus: newStatus || data[i][3]
+          accessStatus: newStatus || data[i][3],
+          adminUnlockOverride: currentOverride,
+          totalScore: Number(freshRow[5]) || 0,
+          currentStreak: Number(freshRow[6]) || 0,
+          quizzesCompleted: Number(freshRow[7]) || 0,
+          attemptedDays: freshAttempted
         }
       });
     }
@@ -651,11 +671,15 @@ function handleSubmitQuiz(data) {
   
   const studentRows = studentSheet.getDataRange().getValues();
   let studentRowIndex = -1;
+  let studentNameFromSheet = '';
+  let studentLevelFromSheet = '';
   
   for (let i = 1; i < studentRows.length; i++) {
     const rowPhone = String(studentRows[i][0]).trim().replace(/\D/g, '');
-    if (rowPhone === phone) {
+    if (phonesMatch(rowPhone, phone)) {
       studentRowIndex = i + 1; // 1-based sheet row
+      studentNameFromSheet = studentRows[i][1];
+      studentLevelFromSheet = studentRows[i][2];
       
       // Enforce single attempt: check if Day_N was already attempted
       const dayColIndex = 10 + day; // 1-based column: Col 11 is Day 1
@@ -672,6 +696,9 @@ function handleSubmitQuiz(data) {
   }
   
   const now = new Date();
+  let updatedScore = score;
+  let updatedStreak = 1;
+  let updatedQuizzes = 1;
   
   // 1. Mark Day_N as 'Attempted (score pts)' and update cumulative metrics FIRST
   if (studentRowIndex > 0) {
@@ -683,10 +710,41 @@ function handleSubmitQuiz(data) {
     const curStreak = Number(studentSheet.getRange(studentRowIndex, 7).getValue()) || 0;
     const curCount = Number(studentSheet.getRange(studentRowIndex, 8).getValue()) || 0;
     
-    studentSheet.getRange(studentRowIndex, 6).setValue(curScore + score);
-    studentSheet.getRange(studentRowIndex, 7).setValue(curStreak + 1);
-    studentSheet.getRange(studentRowIndex, 8).setValue(curCount + 1);
+    updatedScore = curScore + score;
+    updatedStreak = curStreak + 1;
+    updatedQuizzes = curCount + 1;
+
+    studentSheet.getRange(studentRowIndex, 6).setValue(updatedScore);
+    studentSheet.getRange(studentRowIndex, 7).setValue(updatedStreak);
+    studentSheet.getRange(studentRowIndex, 8).setValue(updatedQuizzes);
     studentSheet.getRange(studentRowIndex, 10).setValue(now.toISOString());
+    SpreadsheetApp.flush();
+  } else {
+    // If student was not found in sheet, create their row with Day_N attempted
+    const isCoaching = isCoachingStudent(phone);
+    const initialStatus = isCoaching ? 'ACTIVE' : 'NO ACCESS';
+    const sName = data.studentName || 'Student (' + phone.slice(-4) + ')';
+    const sLevel = data.level || 'Junior (Grade 1-4)';
+    const newRow = [
+      phone,
+      sName,
+      sLevel,
+      initialStatus,
+      'None',
+      score,
+      1,
+      1,
+      now.toISOString(),
+      now.toISOString()
+    ];
+    for (let d = 1; d <= 100; d++) {
+      if (d === day) {
+        newRow.push('Attempted (' + score + ' pts)');
+      } else {
+        newRow.push('Not Attempted');
+      }
+    }
+    studentSheet.appendRow(newRow);
     SpreadsheetApp.flush();
   }
   
@@ -712,7 +770,13 @@ function handleSubmitQuiz(data) {
   
   return jsonResponse({
     status: 'success',
-    message: 'Day ' + day + ' quiz recorded and marked as Attempted in Google Sheet!'
+    message: 'Day ' + day + ' quiz recorded and marked as Attempted in Google Sheet!',
+    student: {
+      totalScore: updatedScore,
+      currentStreak: updatedStreak,
+      quizzesCompleted: updatedQuizzes,
+      lastActiveDate: now.toISOString()
+    }
   });
 }
 
@@ -728,6 +792,9 @@ function handleLeaderboard(level) {
   const reqFilter = String(level || 'all').trim().toLowerCase();
   
   for (let i = 1; i < data.length; i++) {
+    const sName = String(data[i][1] || '').trim();
+    if (!sName || sName.indexOf('(Demo)') !== -1) continue;
+
     const status = String(data[i][3] || 'ACTIVE').trim().toUpperCase();
     if (status === 'BLOCKED') continue;
     
@@ -778,7 +845,7 @@ function handleStudentHistory(phone) {
   const history = [];
   for (let i = 1; i < data.length; i++) {
     const rowPhone = String(data[i][1]).trim().replace(/\D/g, '');
-    if (rowPhone === cleanPhone) {
+    if (phonesMatch(rowPhone, cleanPhone)) {
       history.push({
         timestamp: data[i][0],
         day: Number(data[i][4]),

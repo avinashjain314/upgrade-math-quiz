@@ -62,14 +62,14 @@ const BADGES = [
     id: 'speed_demon',
     title: 'Speed Star',
     icon: '⏱️',
-    description: 'Completed a 20-question quiz in under 5 minutes with timer!',
+    description: 'Completed a 15-question quiz in under 5 minutes with timer!',
     reqType: 'speed',
     reqValue: 300,
     tier: 'gold'
   },
   {
     id: 'perfect_score',
-    title: 'Bullseye 20/20',
+    title: 'Bullseye 15/15',
     icon: '🎯',
     description: 'Scored a flawless 100% on any daily quiz!',
     reqType: 'perfect',

@@ -16,9 +16,25 @@
  * Upgrade Math Quiz by Avinash Sir
  */
 
+const SENIOR_STUDENT_NAMES = [
+  'Ardiya', 'Aarav', 'Sara', 'Yousuf', 'Kalsoom', 'Omar', 'Ali',
+  'Shrinay', 'Shrihaan', 'Aanya', 'Avinash', 'Shruti', 'Aayush'
+];
+
 const SeniorMath = {
   pick(arr, rng) {
     return arr[Math.floor(rng() * arr.length)];
+  },
+
+  pickName(rng) {
+    return SENIOR_STUDENT_NAMES[Math.floor(rng() * SENIOR_STUDENT_NAMES.length)];
+  },
+
+  pickTwoNames(rng) {
+    const idx1 = Math.floor(rng() * SENIOR_STUDENT_NAMES.length);
+    let idx2 = Math.floor(rng() * SENIOR_STUDENT_NAMES.length);
+    while (idx2 === idx1) idx2 = Math.floor(rng() * SENIOR_STUDENT_NAMES.length);
+    return [SENIOR_STUDENT_NAMES[idx1], SENIOR_STUDENT_NAMES[idx2]];
   },
 
   makeOptions(correctVal, distractorOffsets, rng, formatter = (v) => String(v)) {
@@ -241,8 +257,7 @@ const SeniorMath = {
       const scoredPct = this.pick([75, 80, 85, 90, 95], rng);
       const marksScored = (scoredPct / 100) * maxMarks;
       const opts = this.makeOptions(marksScored, [10, -10, 20, -20], rng);
-      const names = ['Sara', 'Aanya', 'Aarav', 'Ardiya', 'Omar', 'Kalsoom', 'Ali', 'Adam', 'Yousuf', 'Avinash', 'Shrihaan', 'Shrinay'];
-      const studentName = this.pick(names, rng);
+      const studentName = this.pickName(rng);
       return {
         topic: 'Percentages',
         difficulty: diff,
@@ -356,14 +371,15 @@ const SeniorMath = {
       const totalAmount = sumR * unit;
       const share1 = r1 * unit;
       const opts = this.makeOptions(share1, [unit, -unit, 20, -20], rng, (v) => `$${v}`);
+      const [nameA, nameB] = this.pickTwoNames(rng);
       return {
         topic: 'Ratios',
         difficulty: diff,
-        questionText: `Divide $${totalAmount} between Sara and Aarav in the ratio ${r1} : ${r2}. What is Sara's share?`,
+        questionText: `Divide $${totalAmount} between ${nameA} and ${nameB} in the ratio ${r1} : ${r2}. What is ${nameA}'s share?`,
         options: opts.options,
         correctIndex: opts.correctIndex,
         correctAnswer: opts.correctAnswer,
-        explanation: `Total ratio parts = ${r1} + ${r2} = ${sumR}. Value of 1 part = $${totalAmount} ÷ ${sumR} = $${unit}. Sara's share (${r1} parts) = ${r1} × $${unit} = $${share1}.`
+        explanation: `Total ratio parts = ${r1} + ${r2} = ${sumR}. Value of 1 part = $${totalAmount} ÷ ${sumR} = $${unit}. ${nameA}'s share (${r1} parts) = ${r1} × $${unit} = $${share1}.`
       };
     }
   },
@@ -469,125 +485,285 @@ const SeniorMath = {
   // 9. SQUARES, CUBES, POWERS & EXPONENTS
   genPowersSquares(day, diff, rng) {
     if (diff === 'easy') {
-      const n = Math.floor(rng() * 15) + 6; // 6 to 20
-      const sq = n * n;
-      const opts = this.makeOptions(sq, [n, -n, 10, -10], rng);
-      return {
-        topic: 'Squares & Cubes',
-        difficulty: diff,
-        questionText: `What is the square of ${n} (${n}²)?`,
-        options: opts.options,
-        correctIndex: opts.correctIndex,
-        correctAnswer: opts.correctAnswer,
-        explanation: `${n}² = ${n} × ${n} = ${sq}.`
-      };
+      const isSqrt = rng() < 0.5;
+      if (isSqrt) {
+        const n = Math.floor(rng() * 20) + 11; // 11 to 30
+        const sq = n * n;
+        const opts = this.makeOptions(n, [1, -1, 2, -2], rng);
+        return {
+          topic: 'Square Roots',
+          difficulty: diff,
+          questionText: `What is the square root of ${sq} (√${sq})?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `Since ${n} × ${n} = ${sq}, the square root of ${sq} is ${n}.`
+        };
+      } else {
+        const n = Math.floor(rng() * 20) + 11; // 11 to 30
+        const sq = n * n;
+        const opts = this.makeOptions(sq, [n, -n, 10, -10], rng);
+        return {
+          topic: 'Squares & Cubes',
+          difficulty: diff,
+          questionText: `What is the square of ${n} (${n}²)?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `${n}² = ${n} × ${n} = ${sq}.`
+        };
+      }
     } else if (diff === 'medium') {
-      const n = Math.floor(rng() * 8) + 2; // 2 to 9
-      const cube = n * n * n;
-      const opts = this.makeOptions(cube, [n * n, -(n * n), 10, -10], rng);
-      return {
-        topic: 'Squares & Cubes',
-        difficulty: diff,
-        questionText: `Evaluate the cube of ${n} (${n}³):`,
-        options: opts.options,
-        correctIndex: opts.correctIndex,
-        correctAnswer: opts.correctAnswer,
-        explanation: `${n}³ = ${n} × ${n} × ${n} = ${cube}.`
-      };
+      const isCubeRoot = rng() < 0.4;
+      if (isCubeRoot) {
+        const n = Math.floor(rng() * 9) + 2; // 2 to 10
+        const cube = n * n * n;
+        const opts = this.makeOptions(n, [1, -1, 2, -2], rng);
+        return {
+          topic: 'Cube Roots',
+          difficulty: diff,
+          questionText: `What is the cube root of ${cube} (∛${cube})?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `Since ${n} × ${n} × ${n} = ${cube}, the cube root of ${cube} is ${n}.`
+        };
+      } else {
+        const n = Math.floor(rng() * 9) + 2; // 2 to 10
+        const cube = n * n * n;
+        const opts = this.makeOptions(cube, [n * n, -(n * n), 10, -10], rng);
+        return {
+          topic: 'Squares & Cubes',
+          difficulty: diff,
+          questionText: `Evaluate the cube of ${n} (${n}³):`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `${n}³ = ${n} × ${n} × ${n} = ${cube}.`
+        };
+      }
     } else {
-      // Hard: Exponents law a^m * a^n = a^(m+n)
-      const base = this.pick([2, 3, 5], rng);
-      const m = Math.floor(rng() * 3) + 2;
-      const n = Math.floor(rng() * 3) + 2;
-      const totalExp = m + n;
-      const options = [
-        `${base}^${totalExp}`,
-        `${base}^${m * n}`,
-        `${base * base}^${totalExp}`,
-        `${base}^${totalExp - 1}`
-      ].sort(() => rng() - 0.5);
+      // Hard: Exponents law (product rule or quotient rule)
+      const isQuotient = rng() < 0.5;
+      const base = this.pick([2, 3, 5, 7, 10], rng);
+      if (isQuotient) {
+        const m = Math.floor(rng() * 4) + 5; // 5 to 8
+        const n = Math.floor(rng() * 3) + 2; // 2 to 4
+        const diffExp = m - n;
+        const options = [
+          `${base}^${diffExp}`,
+          `${base}^${m + n}`,
+          `${base}^${m * n}`,
+          `${base}^${diffExp + 1}`
+        ].sort(() => rng() - 0.5);
 
-      return {
-        topic: 'Powers & Exponents',
-        difficulty: diff,
-        questionText: `Using the product law of exponents, simplify: ${base}^${m} × ${base}^${n} = ?`,
-        options: options,
-        correctIndex: options.indexOf(`${base}^${totalExp}`),
-        correctAnswer: `${base}^${totalExp}`,
-        explanation: `By exponent law a^m × a^n = a^(m + n): ${base}^${m} × ${base}^${n} = ${base}^(${m} + ${n}) = ${base}^${totalExp}.`
-      };
+        return {
+          topic: 'Powers & Exponents',
+          difficulty: diff,
+          questionText: `Using the quotient law of exponents, simplify: ${base}^${m} ÷ ${base}^${n} = ?`,
+          options: options,
+          correctIndex: options.indexOf(`${base}^${diffExp}`),
+          correctAnswer: `${base}^${diffExp}`,
+          explanation: `By exponent law a^m ÷ a^n = a^(m - n): ${base}^${m} ÷ ${base}^${n} = ${base}^(${m} - ${n}) = ${base}^${diffExp}.`
+        };
+      } else {
+        const m = Math.floor(rng() * 3) + 2;
+        const n = Math.floor(rng() * 3) + 2;
+        const totalExp = m + n;
+        const options = [
+          `${base}^${totalExp}`,
+          `${base}^${m * n}`,
+          `${base * base}^${totalExp}`,
+          `${base}^${totalExp - 1}`
+        ].sort(() => rng() - 0.5);
+
+        return {
+          topic: 'Powers & Exponents',
+          difficulty: diff,
+          questionText: `Using the product law of exponents, simplify: ${base}^${m} × ${base}^${n} = ?`,
+          options: options,
+          correctIndex: options.indexOf(`${base}^${totalExp}`),
+          correctAnswer: `${base}^${totalExp}`,
+          explanation: `By exponent law a^m × a^n = a^(m + n): ${base}^${m} × ${base}^${n} = ${base}^(${m} + ${n}) = ${base}^${totalExp}.`
+        };
+      }
     }
   },
 
   // 10. ANGLES & GEOMETRY
   genAngles(day, diff, rng) {
     if (diff === 'easy') {
-      const angleTypes = [
-        { angle: '45°', type: 'Acute angle (< 90°)' },
-        { angle: '90°', type: 'Right angle (= 90°)' },
-        { angle: '120°', type: 'Obtuse angle (> 90° and < 180°)' },
-        { angle: '180°', type: 'Straight angle (= 180°)' }
-      ];
-      const item = this.pick(angleTypes, rng);
-      const options = [
-        'Acute angle (< 90°)',
-        'Right angle (= 90°)',
-        'Obtuse angle (> 90° and < 180°)',
-        'Straight angle (= 180°)'
-      ].sort(() => rng() - 0.5);
+      const mode = Math.floor(rng() * 3);
+      if (mode === 0) {
+        // Complementary angle (sums to 90)
+        const a = Math.floor(rng() * 65) + 15; // 15 to 80
+        const comp = 90 - a;
+        const opts = this.makeOptions(comp, [10, -10, 5, -5], rng, (v) => `${v}°`);
+        return {
+          topic: 'Complementary Angles',
+          difficulty: diff,
+          questionText: `Two angles are complementary if they add up to 90°. What is the complement of ${a}°?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `Complementary angles add up to 90°. Complement = 90° - ${a}° = ${comp}°.`
+        };
+      } else if (mode === 1) {
+        // Supplementary angle (sums to 180)
+        const a = Math.floor(rng() * 120) + 30; // 30 to 150
+        const supp = 180 - a;
+        const opts = this.makeOptions(supp, [10, -10, 20, -20], rng, (v) => `${v}°`);
+        return {
+          topic: 'Supplementary Angles',
+          difficulty: diff,
+          questionText: `Two angles are supplementary if their sum is 180°. What is the supplement of ${a}°?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `Supplementary angles add up to 180°. Supplement = 180° - ${a}° = ${supp}°.`
+        };
+      } else {
+        // Angle Classification
+        const deg = this.pick([25, 45, 68, 89, 90, 105, 120, 145, 175, 180, 210, 270], rng);
+        let typeStr = '';
+        if (deg < 90) typeStr = 'Acute angle (< 90°)';
+        else if (deg === 90) typeStr = 'Right angle (= 90°)';
+        else if (deg < 180) typeStr = 'Obtuse angle (> 90° and < 180°)';
+        else if (deg === 180) typeStr = 'Straight angle (= 180°)';
+        else typeStr = 'Reflex angle (> 180°)';
 
+        const allTypes = [
+          'Acute angle (< 90°)',
+          'Right angle (= 90°)',
+          'Obtuse angle (> 90° and < 180°)',
+          'Straight angle (= 180°)',
+          'Reflex angle (> 180°)'
+        ];
+        const dist = allTypes.filter(t => t !== typeStr).sort(() => rng() - 0.5).slice(0, 3);
+        const options = [typeStr, ...dist].sort(() => rng() - 0.5);
+
+        return {
+          topic: 'Angles',
+          difficulty: diff,
+          questionText: `An angle measuring ${deg}° is classified as what type of angle?`,
+          options: options,
+          correctIndex: options.indexOf(typeStr),
+          correctAnswer: typeStr,
+          explanation: `By geometric definitions: ${deg}° is an ${typeStr}.`
+        };
+      }
+    } else if (diff === 'medium') {
+      // Linear pair: straight line angle
+      const a = Math.floor(rng() * 110) + 35; // 35 to 145
+      const b = 180 - a;
+      const opts = this.makeOptions(b, [10, -10, 5, -5], rng, (v) => `${v}°`);
       return {
-        topic: 'Angles',
+        topic: 'Linear Pair Angles',
         difficulty: diff,
-        questionText: `An angle measuring ${item.angle} is classified as what type of angle?`,
-        options: options,
-        correctIndex: options.indexOf(item.type),
-        correctAnswer: item.type,
-        explanation: `By geometric definitions: ${item.angle} is an ${item.type}.`
-      };
-    } else {
-      // Triangle angle sum property: 180 - (a + b)
-      const a = Math.floor(rng() * 40) + 40; // 40 to 80
-      const b = Math.floor(rng() * 40) + 30; // 30 to 70
-      const c = 180 - (a + b);
-      const opts = this.makeOptions(c, [10, -10, 5, -5], rng, (v) => `${v}°`);
-      return {
-        topic: 'Angles',
-        difficulty: diff,
-        questionText: `In a triangle, two interior angles measure ${a}° and ${b}°. What is the measure of the third angle?`,
+        questionText: `Two adjacent angles on a straight line form a linear pair. If one angle is ${a}°, what is the measure of the other angle?`,
         options: opts.options,
         correctIndex: opts.correctIndex,
         correctAnswer: opts.correctAnswer,
-        explanation: `Sum of all 3 interior angles of any triangle is 180°. Third angle = 180° - (${a}° + ${b}°) = 180° - ${a + b}° = ${c}°.`
+        explanation: `Angles on a straight line add up to 180°. Other angle = 180° - ${a}° = ${b}°.`
       };
+    } else {
+      // Hard: Quadrilateral fourth angle or Triangle third angle
+      const isQuad = rng() < 0.5;
+      if (isQuad) {
+        const a = Math.floor(rng() * 40) + 60; // 60-100
+        const b = Math.floor(rng() * 40) + 70; // 70-110
+        const c = Math.floor(rng() * 30) + 80; // 80-110
+        const d = 360 - (a + b + c);
+        const opts = this.makeOptions(d, [10, -10, 15, -15], rng, (v) => `${v}°`);
+        return {
+          topic: 'Angles in Quadrilaterals',
+          difficulty: diff,
+          questionText: `In a four-sided quadrilateral, three interior angles measure ${a}°, ${b}°, and ${c}°. What is the measure of the fourth angle?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `The sum of interior angles of any quadrilateral is 360°. Fourth angle = 360° - (${a}° + ${b}° + ${c}°) = ${d}°.`
+        };
+      } else {
+        const a = Math.floor(rng() * 40) + 40; // 40 to 80
+        const b = Math.floor(rng() * 40) + 30; // 30 to 70
+        const c = 180 - (a + b);
+        const opts = this.makeOptions(c, [10, -10, 5, -5], rng, (v) => `${v}°`);
+        return {
+          topic: 'Angles',
+          difficulty: diff,
+          questionText: `In a triangle, two interior angles measure ${a}° and ${b}°. What is the measure of the third angle?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `Sum of all 3 interior angles of any triangle is 180°. Third angle = 180° - (${a}° + ${b}°) = 180° - ${a + b}° = ${c}°.`
+        };
+      }
     }
   },
 
   // 11. UNITARY METHOD & INTERNATIONAL CONVERSIONS
   genUnitaryAndConversions(day, diff, rng) {
     if (diff === 'easy') {
-      // International Numbering & Metric System
-      const conv = [
-        { q: 'How many thousands make 1 Million in the International numbering system?', ans: '1,000 thousands', opts: ['100 thousands', '1,000 thousands', '10,000 thousands', '500 thousands'] },
-        { q: 'How many Millions make 1 Billion in the International numbering system?', ans: '1,000 Millions', opts: ['100 Millions', '1,000 Millions', '10,000 Millions', '500 Millions'] },
-        { q: 'How many zeroes are there in 1 Million (1,000,000)?', ans: '6 zeroes', opts: ['5 zeroes', '6 zeroes', '7 zeroes', '8 zeroes'] },
-        { q: 'How many zeroes are there in 1 Billion (1,000,000,000)?', ans: '9 zeroes', opts: ['6 zeroes', '8 zeroes', '9 zeroes', '10 zeroes'] },
-        { q: 'How many millimeters (mm) are in 1 meter (m)?', ans: '1,000 mm', opts: ['100 mm', '500 mm', '1,000 mm', '10,000 mm'] },
-        { q: 'How many grams (g) are in 1 kilogram (kg)?', ans: '1,000 g', opts: ['100 g', '500 g', '1,000 g', '10,000 g'] }
-      ];
-      const item = this.pick(conv, rng);
-      const shuffled = [...item.opts].sort(() => rng() - 0.5);
-      return {
-        topic: 'Conversion of Units',
-        difficulty: diff,
-        questionText: item.q,
-        options: shuffled,
-        correctIndex: shuffled.indexOf(item.ans),
-        correctAnswer: item.ans,
-        explanation: `In the International System of Units: ${item.ans}.`
-      };
+      const mode = Math.floor(rng() * 4);
+      if (mode === 0) {
+        const m = Math.floor(rng() * 8) + 2; // 2 to 9
+        const ans = m * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v.toLocaleString()} thousands`);
+        return {
+          topic: 'International Numbering',
+          difficulty: diff,
+          questionText: `How many thousands make ${m} Million in the International numbering system?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 Million = 1,000 thousands. Therefore, ${m} Million = ${m} × 1,000 = ${ans.toLocaleString()} thousands.`
+        };
+      } else if (mode === 1) {
+        const km = Math.floor(rng() * 12) + 2;
+        const ans = km * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} m`);
+        return {
+          topic: 'Conversion of Units',
+          difficulty: diff,
+          questionText: `Convert ${km} kilometers (km) into meters (m):`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 km = 1,000 m. Therefore, ${km} km = ${km} × 1,000 = ${ans} m.`
+        };
+      } else if (mode === 2) {
+        const kg = Math.floor(rng() * 15) + 3;
+        const ans = kg * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} g`);
+        return {
+          topic: 'Conversion of Units',
+          difficulty: diff,
+          questionText: `Convert ${kg} kilograms (kg) into grams (g):`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 kg = 1,000 g. Therefore, ${kg} kg = ${kg} × 1,000 = ${ans} g.`
+        };
+      } else {
+        const m = Math.floor(rng() * 8) + 2;
+        const ans = m * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} mm`);
+        return {
+          topic: 'Conversion of Units',
+          difficulty: diff,
+          questionText: `How many millimeters (mm) are there in ${m} meters (m)?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 meter = 1,000 millimeters. Therefore, ${m} m = ${m} × 1,000 = ${ans} mm.`
+        };
+      }
     } else {
-      // Unitary method
+      // Unitary method with real coaching student names
+      const studentName = this.pickName(rng);
+      const items = ['identical notebooks', 'cricket balls', 'storybooks', 'math compass boxes', 'art sketchbooks', 'backpacks'];
+      const item = this.pick(items, rng);
       const count1 = Math.floor(rng() * 4) + 3; // e.g. 5
       const pricePerUnit = Math.floor(rng() * 15) + 12; // e.g. 20
       const total1 = count1 * pricePerUnit;
@@ -597,11 +773,11 @@ const SeniorMath = {
       return {
         topic: 'Unitary Method',
         difficulty: diff,
-        questionText: `If the cost of ${count1} identical story books is $${total1}, what will be the cost of ${count2} such books?`,
+        questionText: `If the cost of ${count1} ${item} is $${total1}, ${studentName} wants to buy ${count2} such ${item}. How much will ${studentName} have to pay?`,
         options: opts.options,
         correctIndex: opts.correctIndex,
         correctAnswer: opts.correctAnswer,
-        explanation: `Step 1 (Find cost of 1 unit): $${total1} ÷ ${count1} = $${pricePerUnit} per book. Step 2 (Find cost of ${count2} units): ${count2} × $${pricePerUnit} = $${total2}.`
+        explanation: `Step 1 (Find cost of 1 unit): $${total1} ÷ ${count1} = $${pricePerUnit} per item. Step 2 (Find cost of ${count2} units): ${count2} × $${pricePerUnit} = $${total2}.`
       };
     }
   }

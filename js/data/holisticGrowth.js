@@ -226,7 +226,7 @@ const HOLISTIC_GROWTH_DATA = [
       "word": "Diligence",
       "phonetic": "DIL-ih-juhns",
       "meaning": "Careful and persistent work or effort.",
-      "example": "Diligence in practicing 20 questions every single day builds lifelong mental speed.",
+      "example": "Diligence in practicing 15 questions every single day builds lifelong mental speed.",
       "category": "Habit"
     },
     "mindFact": {
@@ -469,7 +469,7 @@ const HOLISTIC_GROWTH_DATA = [
     "powerfulThought": {
       "quote": "Small deeds done are better than great deeds planned.",
       "author": "Peter Marshall",
-      "lesson": "Solving 20 questions today is infinitely better than planning to solve 100 questions tomorrow."
+      "lesson": "Solving 15 questions today is infinitely better than planning to solve 100 questions tomorrow."
     }
   },
   {
@@ -805,7 +805,7 @@ const HOLISTIC_GROWTH_DATA = [
     "powerfulThought": {
       "quote": "Be like a postage stamp\u2014stick to one thing until you get there.",
       "author": "Josh Billings",
-      "lesson": "Finish what you start. Complete all 20 questions before moving to other activities."
+      "lesson": "Finish what you start. Complete all 15 questions before moving to other activities."
     }
   },
   {
@@ -1024,7 +1024,7 @@ const HOLISTIC_GROWTH_DATA = [
       "word": "Jubilant",
       "phonetic": "JOO-bih-lunt",
       "meaning": "Feeling or expressing great happiness, triumph, and celebration.",
-      "example": "The whole family was jubilant when Aarav solved all 20 questions correctly!",
+      "example": "The whole family was jubilant when Aarav solved all 15 questions correctly!",
       "category": "Joy"
     },
     "mindFact": {
@@ -1519,7 +1519,7 @@ const HOLISTIC_GROWTH_DATA = [
     "powerfulThought": {
       "quote": "Small deeds done are better than great deeds planned.",
       "author": "Peter Marshall",
-      "lesson": "Solving 20 questions today is infinitely better than planning to solve 100 questions tomorrow."
+      "lesson": "Solving 15 questions today is infinitely better than planning to solve 100 questions tomorrow."
     }
   },
   {
@@ -1855,7 +1855,7 @@ const HOLISTIC_GROWTH_DATA = [
     "powerfulThought": {
       "quote": "Be like a postage stamp\u2014stick to one thing until you get there.",
       "author": "Josh Billings",
-      "lesson": "Finish what you start. Complete all 20 questions before moving to other activities."
+      "lesson": "Finish what you start. Complete all 15 questions before moving to other activities."
     }
   },
   {

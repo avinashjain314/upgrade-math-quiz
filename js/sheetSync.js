@@ -14,7 +14,8 @@ const SheetSync = {
     CURRENT_USER: 'umq_current_user',
     LOCAL_USERS: 'umq_local_users',
     SUBMISSIONS: 'umq_submissions',
-    OFFLINE_QUEUE: 'umq_offline_queue'
+    OFFLINE_QUEUE: 'umq_offline_queue',
+    REAL_LEADERBOARD_CACHE: 'umq_real_leaderboard_cache'
   },
 
   getScriptUrl() {
@@ -49,42 +50,90 @@ const SheetSync = {
     '64221910852',     // Student 4 (New Zealand)
     '64211489307',     // Student 5 (New Zealand)
     '6195393482',      // Student 6 (International)
-    '642041151177',    // Student 7 (New Zealand)
+    '642041151177',    // Student 7 (New Zealand - International)
+    '02041151177',     // Student 7 (New Zealand - Local format)
     '64211452785',     // Student 8 (New Zealand - International)
     '0211452785',      // Student 8 (New Zealand - Local format)
     '1524055873',      // Student 9 (Coaching Student)
     '9179799355',      // Avinash Sir (Admin)
-    '9999999999',      // Admin Passcode Demo
-    '9876543210',      // Demo Student (Sara)
-    '9876543211'       // Demo Student (Aarav)
+    '9999999999'       // Admin Passcode Demo
   ],
+
+  phonesMatch(phoneA, phoneB) {
+    if (!phoneA || !phoneB) return false;
+    const a = String(phoneA).replace(/\D/g, '');
+    const b = String(phoneB).replace(/\D/g, '');
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.length >= 8 && b.length >= 8) {
+      if (a.endsWith(b) || b.endsWith(a)) return true;
+      const cleanA = a.replace(/^0+/, '');
+      const cleanB = b.replace(/^0+/, '');
+      if (cleanA.length >= 8 && cleanB.length >= 8) {
+        if (cleanA.endsWith(cleanB) || cleanB.endsWith(cleanA)) return true;
+      }
+    }
+    return false;
+  },
 
   isCoachingStudent(phone) {
     if (!phone) return false;
     const clean = String(phone).replace(/\D/g, '');
     if (!clean || clean.length < 8) return false;
 
-    return this.COACHING_STUDENTS.some(p => {
-      const cleanP = String(p).replace(/\D/g, '');
-      if (clean === cleanP) return true;
-      if (clean.length >= 8 && cleanP.length >= 8) {
-        if (clean.endsWith(cleanP) || cleanP.endsWith(clean)) return true;
-        const localClean = clean.replace(/^0+/, '');
-        const localCleanP = cleanP.replace(/^0+/, '');
-        if (localClean.length >= 8 && localCleanP.length >= 8) {
-          if (cleanP.endsWith(localClean) || clean.endsWith(localCleanP)) return true;
-        }
-      }
-      return false;
-    });
+    return this.COACHING_STUDENTS.some(p => this.phonesMatch(clean, p));
   },
 
   getPaymentConfig() {
     return this.PAYMENT_CONFIG;
   },
 
+  // Purges legacy cached dummy students from browser storage
+  purgeLegacyDummyData() {
+    try {
+      // 1. Purge legacy leaderboard cache containing dummy students
+      const cacheKey = this.STORAGE_KEYS.REAL_LEADERBOARD_CACHE;
+      const rawCache = localStorage.getItem(cacheKey);
+      if (rawCache) {
+        if (rawCache.includes('Diya Patel') || rawCache.includes('Kabir Verma') || rawCache.includes('Ishaan Gupta') || rawCache.includes('Ananya Iyer')) {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+
+      // 2. Clear manual program day overrides for regular students
+      const currentUser = this.getCurrentUser();
+      const cleanPhone = currentUser ? String(currentUser.phone || '').replace(/\D/g, '') : '';
+      if (cleanPhone !== '9179799355' && cleanPhone !== '9999999999') {
+        localStorage.removeItem('umq_program_day_manual');
+      }
+
+      // 3. Clean up any dummy students from LOCAL_USERS
+      const dummyNames = ['diya patel', 'aarav sharma', 'kabir verma', 'ananya iyer', 'ishaan gupta'];
+      const localUsers = this.getLocalUsers();
+      let changed = false;
+      for (const p in localUsers) {
+        if (localUsers[p] && dummyNames.includes(String(localUsers[p].name || '').trim().toLowerCase())) {
+          delete localUsers[p];
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(this.STORAGE_KEYS.LOCAL_USERS, JSON.stringify(localUsers));
+      }
+    } catch (e) {}
+  },
+
+  getOfflineQueue() {
+    try {
+      return JSON.parse(localStorage.getItem(this.STORAGE_KEYS.OFFLINE_QUEUE)) || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
   // 1. VERIFY STUDENT BY MOBILE NUMBER
   async verifyStudent(phone) {
+    this.purgeLegacyDummyData();
     const cleanPhone = String(phone).trim().replace(/\D/g, '');
     const scriptUrl = this.getScriptUrl();
     const localUsers = this.getLocalUsers();
@@ -106,10 +155,21 @@ const SheetSync = {
             if (this.isCoachingStudent(cleanPhone)) {
               resData.student.accessStatus = 'ACTIVE';
             }
-            // Merge with local attempted days if any
-            if (localUser && localUser.attemptedDays) {
-              resData.student.attemptedDays = { ...localUser.attemptedDays, ...(resData.student.attemptedDays || {}) };
-            }
+            
+            // Sheet is authoritative for attempted days!
+            // Only merge pending items from local offline queue that have not synced yet
+            const offlineQueue = this.getOfflineQueue();
+            const pendingDays = {};
+            offlineQueue.forEach(item => {
+              if (this.phonesMatch(item.phone, cleanPhone) && item.dayNumber) {
+                pendingDays[item.dayNumber] = `Attempted (${item.score || 0} pts)`;
+              }
+            });
+            resData.student.attemptedDays = {
+              ...(resData.student.attemptedDays || {}),
+              ...pendingDays
+            };
+
             this.saveLocalUser(resData.student);
             
             // Check if student was freshly auto-registered or hasn't provided a real name yet
@@ -248,10 +308,11 @@ const SheetSync = {
 
   // 2.5 UPDATE STUDENT PROFILE (NAME & LEVEL TRACK)
   async updateStudentProfile(payload) {
-    const cleanPhone = String(payload.phone || '').trim().replace(/\D/g, '');
-    const cleanName = String(payload.name || '').trim();
-    const cleanLevel = String(payload.level || '').trim();
-    const cleanStatus = payload.status ? String(payload.status).trim() : '';
+    const profileData = payload || {};
+    const cleanPhone = String(profileData.phone || '').trim().replace(/\D/g, '');
+    const cleanName = String(profileData.name || '').trim();
+    const cleanLevel = String(profileData.level || '').trim();
+    const cleanStatus = profileData.status ? String(profileData.status).trim() : '';
 
     // Update locally first
     const users = this.getLocalUsers();
@@ -269,7 +330,20 @@ const SheetSync = {
       if (cleanName) currentUser.name = cleanName;
       if (cleanLevel) currentUser.level = cleanLevel;
       if (cleanStatus) currentUser.accessStatus = cleanStatus;
+      if (profileData.adminUnlockOverride !== undefined) currentUser.adminUnlockOverride = profileData.adminUnlockOverride;
+      if (profileData.makeDayActive) {
+        if (!currentUser.attemptedDays) currentUser.attemptedDays = {};
+        delete currentUser.attemptedDays[profileData.makeDayActive];
+      }
       this.setCurrentUser(currentUser);
+    }
+
+    if (users[cleanPhone]) {
+      if (profileData.adminUnlockOverride !== undefined) users[cleanPhone].adminUnlockOverride = profileData.adminUnlockOverride;
+      if (profileData.makeDayActive && users[cleanPhone].attemptedDays) {
+        delete users[cleanPhone].attemptedDays[profileData.makeDayActive];
+      }
+      this.saveLocalUser(users[cleanPhone]);
     }
 
     // Sync online with Google Sheet
@@ -278,10 +352,20 @@ const SheetSync = {
       const params = {
         action: 'update_profile',
         phone: cleanPhone,
-        name: cleanName,
-        level: cleanLevel,
-        status: cleanStatus
+        name: cleanName || '',
+        level: cleanLevel || '',
+        status: cleanStatus || ''
       };
+      if (profileData.adminUnlockOverride !== undefined) {
+        params.adminUnlockOverride = profileData.adminUnlockOverride;
+      }
+      if (profileData.makeDayActive) {
+        params.makeDayActive = profileData.makeDayActive;
+      }
+      if (profileData.resetDay) {
+        params.resetDay = profileData.resetDay;
+      }
+
       try {
         const qs = new URLSearchParams(params).toString();
         const response = await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
@@ -290,6 +374,13 @@ const SheetSync = {
         });
         if (response.ok) {
           const resData = await response.json();
+          if (resData && resData.student) {
+            if (users[cleanPhone]) {
+              users[cleanPhone].adminUnlockOverride = resData.student.adminUnlockOverride;
+              if (resData.student.attemptedDays) users[cleanPhone].attemptedDays = resData.student.attemptedDays;
+              this.saveLocalUser(users[cleanPhone]);
+            }
+          }
           return { success: true, student: users[cleanPhone] || currentUser, remote: resData };
         }
       } catch (e) {
@@ -344,6 +435,8 @@ const SheetSync = {
 
     // Attempt online sync to Google Sheet
     const scriptUrl = this.getScriptUrl();
+    const totalQuestions = submission.totalQuestions || 15;
+    const accuracyPercent = Math.round((submission.questionsCorrect / totalQuestions) * 100);
     const payload = {
       action: 'submit_quiz',
       phone: cleanPhone,
@@ -351,20 +444,56 @@ const SheetSync = {
       level: submission.level,
       dayNumber: submission.dayNumber,
       score: submission.score,
-      accuracy: `${Math.round((submission.questionsCorrect / 20) * 100)}%`,
+      accuracy: `${accuracyPercent}%`,
       timeTakenSec: submission.timeTakenSec,
       questionsCorrect: submission.questionsCorrect,
       timerMode: submission.timerMode
     };
 
     if (scriptUrl && navigator.onLine) {
-      // 1. Send via GET query string (100% reliable execution in Google Apps Script doGet)
-      try {
-        const qs = new URLSearchParams(payload).toString();
-        fetch(`${scriptUrl}?${qs}`, { mode: 'no-cors' }).catch(() => {});
-      } catch (getErr) {}
+      const qs = new URLSearchParams(payload).toString();
+      const getUrl = `${scriptUrl}?${qs}&_nocache=${Date.now()}`;
 
-      // 2. Also send via POST for redundancy
+      // 1. Ultra-reliable background delivery via navigator.sendBeacon
+      try {
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+          navigator.sendBeacon(getUrl);
+        }
+      } catch (beaconErr) {}
+
+      // 2. Immediate async fetch with CORS
+      try {
+        const res = await fetch(getUrl, {
+          method: 'GET',
+          mode: 'cors'
+        });
+        if (res.ok) {
+          const syncData = await res.json();
+          if (syncData && syncData.student) {
+            if (users[cleanPhone]) {
+              users[cleanPhone].totalScore = syncData.student.totalScore;
+              users[cleanPhone].currentStreak = syncData.student.currentStreak;
+              users[cleanPhone].quizzesCompleted = syncData.student.quizzesCompleted;
+              users[cleanPhone].lastActiveDate = syncData.student.lastActiveDate;
+              this.saveLocalUser(users[cleanPhone]);
+            }
+            if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.phone === cleanPhone) {
+              Auth.currentUser.totalScore = syncData.student.totalScore;
+              Auth.currentUser.currentStreak = syncData.student.currentStreak;
+              Auth.currentUser.quizzesCompleted = syncData.student.quizzesCompleted;
+              Auth.currentUser.lastActiveDate = syncData.student.lastActiveDate;
+            }
+          }
+        }
+      } catch (getErr) {
+        // Fallback: send via no-cors GET and queue for retry
+        try {
+          fetch(getUrl, { mode: 'no-cors' }).catch(() => {});
+        } catch (e) {}
+        this.queueOfflineSubmission(payload);
+      }
+
+      // 3. Redundant POST for insurance
       try {
         fetch(scriptUrl, {
           method: 'POST',
@@ -425,8 +554,9 @@ const SheetSync = {
     return { success: true };
   },
 
-  // 4. FETCH LEADERBOARD
+  // 4. FETCH LEADERBOARD (Strictly Canonical: 100% Real Students from Google Sheet)
   async getLeaderboard(filterLevel = 'all') {
+    this.purgeLegacyDummyData();
     const scriptUrl = this.getScriptUrl();
     const cleanFilter = String(filterLevel || 'all').trim().toLowerCase();
 
@@ -443,67 +573,69 @@ const SheetSync = {
       return cl.includes(cleanFilter);
     };
 
+    // Filter helper to strictly reject dummy placeholder names
+    const isRealStudent = (s) => {
+      if (!s || !s.name) return false;
+      const n = String(s.name).trim().toLowerCase();
+      const dummyBlacklist = ['diya patel', 'aarav sharma', 'kabir verma', 'ananya iyer', 'ishaan gupta'];
+      return !dummyBlacklist.includes(n);
+    };
+
     if (scriptUrl && navigator.onLine) {
       try {
-        const res = await fetch(`${scriptUrl}?action=leaderboard&level=${encodeURIComponent(cleanFilter)}&_nocache=${Date.now()}`);
+        const res = await fetch(`${scriptUrl}?action=leaderboard&level=${encodeURIComponent(cleanFilter)}&_nocache=${Date.now()}`, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-store'
+        });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.leaderboard) {
-            let list = data.leaderboard.filter(s => matchesLevel(s.level));
-            const currentUser = this.getCurrentUser();
-            if (currentUser && currentUser.name && matchesLevel(currentUser.level)) {
-              const myEntry = list.find(s => s.name && s.name.toLowerCase() === currentUser.name.toLowerCase());
-              if (myEntry) {
-                myEntry.score = Math.max(Number(myEntry.score) || 0, Number(currentUser.totalScore) || 0);
-                myEntry.streak = Math.max(Number(myEntry.streak) || 0, Number(currentUser.currentStreak) || 0);
-                myEntry.quizzes = Math.max(Number(myEntry.quizzes) || 0, Number(currentUser.quizzesCompleted) || 0);
-              } else if (Number(currentUser.totalScore) > 0) {
-                list.push({
-                  name: currentUser.name,
-                  level: currentUser.level,
-                  score: currentUser.totalScore,
-                  streak: currentUser.currentStreak,
-                  quizzes: currentUser.quizzesCompleted
-                });
-              }
-            }
-            if (list.length > 0) {
-              list.sort((a, b) => b.score - a.score || b.streak - a.streak);
-              return list;
-            }
+          if (data && Array.isArray(data.leaderboard)) {
+            // Strictly real students only
+            const realSheetStudents = data.leaderboard.filter(isRealStudent);
+
+            // Save real sheet rankings to localStorage cache for offline resilience
+            try {
+              localStorage.setItem(this.STORAGE_KEYS.REAL_LEADERBOARD_CACHE, JSON.stringify(realSheetStudents));
+            } catch (e) {}
+
+            let list = realSheetStudents.filter(s => matchesLevel(s.level));
+            list.sort((a, b) => b.score - a.score || b.streak - a.streak);
+            return list;
           }
         }
       } catch (err) {}
     }
 
-    // Fallback: Local students leaderboard + sample high scorers
+    // Offline / Network Fallback: Use cached REAL leaderboard from Google Sheet
+    try {
+      const cached = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.REAL_LEADERBOARD_CACHE));
+      if (Array.isArray(cached) && cached.length > 0) {
+        const realCached = cached.filter(isRealStudent);
+        let list = realCached.filter(s => matchesLevel(s.level));
+        list.sort((a, b) => b.score - a.score || b.streak - a.streak);
+        return list;
+      }
+    } catch (e) {}
+
+    // Ultimate fallback if cache is empty: Show only real local registered students, ZERO dummy stars!
     const localUsers = this.getLocalUsers();
     const students = [];
-
-    // Add sample leaderboard stars for inspiring students
-    const sampleStars = [
-      { name: 'Diya Patel', level: 'Senior (Grade 4-10)', score: 3850, streak: 14, quizzes: 14 },
-      { name: 'Aarav Sharma', level: 'Junior (Grade 1-4)', score: 3620, streak: 12, quizzes: 12 },
-      { name: 'Kabir Verma', level: 'Senior (Grade 4-10)', score: 3100, streak: 10, quizzes: 10 },
-      { name: 'Ananya Iyer', level: 'Junior (Grade 1-4)', score: 2980, streak: 9, quizzes: 9 },
-      { name: 'Ishaan Gupta', level: 'Senior (Grade 4-10)', score: 2450, streak: 8, quizzes: 8 }
-    ];
-
     for (const p in localUsers) {
       const u = localUsers[p];
-      students.push({
-        name: u.name,
-        level: u.level,
-        score: u.totalScore || 0,
-        streak: u.currentStreak || 0,
-        quizzes: u.quizzesCompleted || 0
-      });
+      if (u && u.name && !u.name.startsWith('Student (') && isRealStudent(u)) {
+        students.push({
+          name: u.name,
+          level: u.level || 'Junior (Grade 1-4)',
+          score: Number(u.totalScore) || 0,
+          streak: Number(u.currentStreak) || 0,
+          quizzes: Number(u.quizzesCompleted) || 0
+        });
+      }
     }
-
-    // Merge and filter
-    const combined = [...students, ...sampleStars].filter(s => matchesLevel(s.level));
-    combined.sort((a, b) => b.score - a.score || b.streak - a.streak);
-    return combined;
+    const filtered = students.filter(s => matchesLevel(s.level));
+    filtered.sort((a, b) => b.score - a.score || b.streak - a.streak);
+    return filtered;
   },
 
   // Storage Helpers
@@ -567,19 +699,22 @@ const SheetSync = {
     if (!scriptUrl || !navigator.onLine) return;
 
     try {
-      const q = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.OFFLINE_QUEUE)) || [];
-      if (q.length === 0) return;
+      const q = this.getOfflineQueue();
+      if (!Array.isArray(q) || q.length === 0) return;
 
-      while (q.length > 0) {
-        const item = q.shift();
-        await fetch(scriptUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item)
-        });
+      const remaining = [];
+      for (const item of q) {
+        try {
+          const qs = new URLSearchParams(item).toString();
+          await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
+            method: 'GET',
+            mode: 'no-cors'
+          });
+        } catch (e) {
+          remaining.push(item);
+        }
       }
-      localStorage.setItem(this.STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify([]));
+      localStorage.setItem(this.STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(remaining));
     } catch (e) {}
   }
 };

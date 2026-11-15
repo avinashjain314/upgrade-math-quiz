@@ -29,6 +29,12 @@ const App = {
   },
 
   init() {
+    // Purge any legacy dummy students and process queued offline actions
+    if (typeof SheetSync !== 'undefined' && SheetSync.purgeLegacyDummyData) {
+      SheetSync.purgeLegacyDummyData();
+      SheetSync.processOfflineQueue();
+    }
+
     SoundEngine.init();
     SoundEngine.updateSoundUi();
     SoundEngine.updateBgmUi();
@@ -132,7 +138,8 @@ const App = {
     this.renderHeaderUser();
 
     const today = Auth.getCurrentProgramDay();
-    const isTodayAttempted = user ? Auth.isDayAttempted(today) : false;
+    const completedToday = user ? Auth.hasCompletedQuizToday() : false;
+    const isTodayAttempted = user ? (completedToday || Auth.isDayAttempted(today)) : false;
     const titleInfo = getTitleForScore(user ? (user.totalScore || 0) : 0);
     const wisdom = getDailyWisdom(today);
     const growth = (typeof getHolisticDayGrowth === 'function') ? getHolisticDayGrowth(today) : null;
@@ -190,7 +197,7 @@ const App = {
                 </span>
                 <h2 class="text-2xl sm:text-3xl font-black text-white">Upgrade Math Quiz by Avinash Sir 🎯</h2>
                 <p class="text-sm text-slate-300 max-w-lg">
-                  Every child starts on Day 1 on their enrollment date! Conquering 20 daily questions builds razor-sharp mental speed, English vocabulary, and unbreakable discipline.
+                  Every child starts on Day 1 on their enrollment date! Conquering 15 daily questions builds razor-sharp mental speed, English vocabulary, and unbreakable discipline.
                 </p>
               </div>
               <button onclick="App.switchView('auth')" class="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/30 transition transform hover:scale-105 active:scale-95 text-base whitespace-nowrap">
@@ -214,7 +221,7 @@ const App = {
               </div>
               <h3 class="text-2xl font-black text-white">Day 1 Homework Quiz Ready!</h3>
               <p class="text-sm text-slate-300 max-w-md">
-                20 Questions · 5 Easy (10pts) · 7 Medium (20pts) · 8 Hard (30pts) · Auto-advances in 3s · Only 1 Attempt Allowed!
+                15 Questions · 5 Easy (10pts) · 5 Medium (20pts) · 5 Hard (30pts) · Auto-advances in 3s · Only 1 Attempt Allowed!
               </p>
             </div>
             <div class="flex gap-3">
@@ -224,20 +231,21 @@ const App = {
             </div>
           </div>
         `;
-      } else if (isTodayAttempted) {
+      } else if (completedToday) {
+        const lastFinishedDay = Math.max(1, today - 1);
         todayQuizContainer.innerHTML = `
           <div class="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="space-y-1.5 text-center md:text-left">
               <div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-bold">
-                <span>✓</span> Day ${today} Quiz Already Attempted
+                <span>✓</span> Today's Challenge Completed!
               </div>
-              <h3 class="text-2xl font-black text-white">Great Job Today! 🌟</h3>
+              <h3 class="text-2xl font-black text-white">Awesome Work Today! 🌟</h3>
               <p class="text-sm text-slate-300 max-w-md">
-                Each quiz can only be attempted once per student to maintain strict daily discipline. Tomorrow, Day ${Math.min(100, today + 1)} will unlock!
+                You have successfully completed today's homework quiz. To maintain steady daily discipline, Day ${today} unlocks tomorrow!
               </p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <button onclick="App.reviewPastDay(${today})" class="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 text-sm transition">
+              <button onclick="App.reviewPastDay(${lastFinishedDay})" class="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 text-sm transition">
                 📖 Review Today's Solutions
               </button>
             </div>
@@ -252,7 +260,7 @@ const App = {
               </div>
               <h3 class="text-2xl font-black">Today's Homework Quiz</h3>
               <p class="text-sm text-indigo-100 max-w-md">
-                20 Questions · 5 Easy (10pts) · 7 Medium (20pts) · 8 Hard (30pts) · Auto-advances in 3s · Only 1 Attempt Allowed!
+                15 Questions · 5 Easy (10pts) · 5 Medium (20pts) · 5 Hard (30pts) · Auto-advances in 3s · Only 1 Attempt Allowed!
               </p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -413,22 +421,27 @@ const App = {
         cardClass = 'bg-gradient-to-br from-indigo-900/80 to-slate-900 border-indigo-500 ring-2 ring-indigo-500/30 shadow-lg shadow-indigo-500/20 animate-pulse';
         badgeHtml = `<span class="text-[10px] bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold">Today</span>`;
         actionOnClick = user ? `App.openQuizSetup(${d})` : `App.switchView('auth')`;
-        subtext = user ? '⚡ 20 Questions (Active)' : '👉 Click to Login & Play';
+        subtext = user ? '⚡ 15 Questions (Active)' : '👉 Click to Login & Play';
+      } else if (status.state === 'daily_completed') {
+        cardClass = 'bg-slate-900/90 border-cyan-500/40 hover:border-cyan-400 ring-1 ring-cyan-500/20';
+        badgeHtml = `<span class="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold">⏳ Tomorrow</span>`;
+        actionOnClick = `alert("You have already conquered today's quiz! Day ${d} will unlock tomorrow to build steady daily practice.")`;
+        subtext = '⏰ Unlocks Tomorrow';
       } else if (status.state === 'admin_unlocked') {
         cardClass = 'bg-slate-900/90 border-amber-500/50 hover:border-amber-400 ring-1 ring-amber-500/30';
         badgeHtml = `<span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">🔓 Unlocked</span>`;
         actionOnClick = `App.openQuizSetup(${d})`;
         subtext = 'Special Access (Avinash Sir)';
-      } else if (status.state === 'missed_locked') {
+      } else if (status.state === 'admin_locked' || status.state === 'missed_locked') {
         cardClass = 'bg-slate-950/60 border-slate-900 text-slate-500 opacity-70';
-        badgeHtml = `<span class="text-[10px] bg-rose-950/40 text-rose-400 border border-rose-900/40 px-2 py-0.5 rounded-full font-medium">🔒 Missed</span>`;
-        actionOnClick = `alert("Day ${d} was missed and is locked! In this program, kids do each day's quiz on that day only to build discipline. If you need this day unlocked, ask Avinash Sir via the spreadsheet!")`;
+        badgeHtml = `<span class="text-[10px] bg-amber-950/40 text-amber-400 border border-amber-900/40 px-2 py-0.5 rounded-full font-medium">🔒 Locked</span>`;
+        actionOnClick = `alert("Day ${d} is locked! To maintain discipline, quizzes are taken sequentially. Reach out to Avinash Sir on 9179799355 if you need access.")`;
         subtext = 'Locked (Ask Avinash Sir)';
       } else {
         // Future locked
         cardClass = 'bg-slate-950/30 border-slate-900/60 opacity-40';
         badgeHtml = `<span class="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full">🔒 Locked</span>`;
-        actionOnClick = `alert("Day ${d} is in the future and will unlock on Day ${d}!")`;
+        actionOnClick = `alert("Day ${d} will unlock on Day ${d}!")`;
         subtext = `Unlocks on Day ${d}`;
       }
 
@@ -821,6 +834,7 @@ const App = {
       score: this.quizState.score,
       timeTakenSec: this.quizState.totalTimeSpent,
       questionsCorrect: correctCount,
+      totalQuestions: totalQ,
       timerMode: this.quizState.timerEnabled
     });
 
@@ -1138,6 +1152,20 @@ const App = {
       if (statusSelect) {
         statusSelect.value = res.student.accessStatus || 'ACTIVE';
       }
+
+      const overrideSelect = document.getElementById('admin-edit-override');
+      if (overrideSelect) {
+        const ov = String(res.student.adminUnlockOverride || 'None').trim();
+        overrideSelect.value = (ov === 'All Past Days') ? 'All Past Days' : 'None';
+      }
+
+      const progressSummary = document.getElementById('admin-target-progress-summary');
+      if (progressSummary) {
+        const quizzes = res.student.quizzesCompleted || 0;
+        const score = res.student.totalScore || 0;
+        const streak = res.student.currentStreak || 0;
+        progressSummary.innerText = `Score: ${score} pts · Streak: ${streak}d · Quizzes: ${quizzes}/100`;
+      }
     } else {
       if (editContainer) editContainer.classList.add('hidden');
       alert(`Student with mobile ${phone} was not found in the Google Sheet. Please verify the number.`);
@@ -1154,10 +1182,12 @@ const App = {
     const nameField = document.getElementById('admin-edit-name');
     const levelSelect = document.getElementById('admin-edit-level');
     const statusSelect = document.getElementById('admin-edit-status');
+    const overrideSelect = document.getElementById('admin-edit-override');
 
     const newName = nameField ? nameField.value.trim() : '';
     const newLevel = levelSelect ? levelSelect.value : 'Junior (Grade 1-4)';
     const newStatus = statusSelect ? statusSelect.value : 'ACTIVE';
+    const newOverride = overrideSelect ? overrideSelect.value : 'None';
 
     if (!newName || newName.length < 2) {
       alert('Please enter a valid student name.');
@@ -1175,7 +1205,8 @@ const App = {
       phone: phone,
       name: newName,
       level: newLevel,
-      status: newStatus
+      status: newStatus,
+      adminUnlockOverride: newOverride
     });
 
     if (btn) {
@@ -1187,7 +1218,7 @@ const App = {
     if (feedback) {
       feedback.classList.remove('hidden');
       feedback.className = 'text-xs font-semibold px-3 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-300';
-      feedback.innerHTML = `✓ Student ${phone} successfully updated to "${newName}" (${newLevel}, ${newStatus}) in Google Sheet!`;
+      feedback.innerHTML = `✓ Student ${phone} successfully updated in Google Sheet! (Override: ${newOverride})`;
       SoundEngine.playVictory();
       setTimeout(() => {
         feedback.classList.add('hidden');
@@ -1200,7 +1231,57 @@ const App = {
       current.name = newName;
       current.level = newLevel;
       current.accessStatus = newStatus;
+      current.adminUnlockOverride = newOverride;
       this.renderHeaderUser();
+    }
+  },
+
+  async adminReactivateMissedDay() {
+    if (!this.adminTargetStudent) {
+      alert('Please search for a student first.');
+      return;
+    }
+    const dayInput = document.getElementById('admin-reactivate-day');
+    const dayNum = parseInt(dayInput ? dayInput.value : '', 10);
+    if (isNaN(dayNum) || dayNum < 1 || dayNum > 100) {
+      alert('Please enter a valid Day number between 1 and 100.');
+      return;
+    }
+
+    const btn = document.getElementById('admin-reactivate-btn');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Activating...</span>';
+    }
+
+    const phone = this.adminTargetStudent.phone;
+    const res = await SheetSync.updateStudentProfile({
+      phone: phone,
+      makeDayActive: dayNum
+    });
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+
+    if (dayInput) dayInput.value = '';
+
+    const feedback = document.getElementById('admin-feedback-box');
+    if (feedback) {
+      feedback.classList.remove('hidden');
+      feedback.className = 'text-xs font-semibold px-3 py-1.5 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-300';
+      feedback.innerHTML = `✓ Day ${dayNum} has been activated in Google Sheet! Student can now open and complete Day ${dayNum}.`;
+      SoundEngine.playVictory();
+      setTimeout(() => feedback.classList.add('hidden'), 6000);
+    }
+
+    // Update in-memory if target is current user
+    const current = Auth.getCurrentUser();
+    if (current && String(current.phone).replace(/\D/g, '') === String(phone).replace(/\D/g, '')) {
+      if (current.attemptedDays) delete current.attemptedDays[dayNum];
+      this.renderRoadmap();
     }
   },
 
@@ -1553,28 +1634,26 @@ const App = {
     clearInterval(this.bonusState.countdownInterval);
     clearInterval(this.bonusState.autoAdvanceInterval);
 
-    // Prepare 5 bonus cards
+    // Prepare 4 bonus cards with high-contrast rewards
     const baseCards = (roundNum === 1) ? [
       { id: 0, label: '+50', points: 50, type: 'pts', bg: 'from-emerald-600 to-teal-700' },
-      { id: 1, label: '+100', points: 100, type: 'pts', bg: 'from-emerald-500 to-green-700' },
-      { id: 2, label: '+150', points: 150, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
-      { id: 3, label: '+200', points: 200, type: 'pts', bg: 'from-purple-600 to-pink-700' },
-      { id: 4, label: 'x2 SPEED', points: 100, type: 'speed', bg: 'from-rose-600 to-red-700' }
+      { id: 1, label: '+100', points: 100, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
+      { id: 2, label: '+200', points: 200, type: 'pts', bg: 'from-amber-500 to-yellow-600' },
+      { id: 3, label: 'x2 SPEED', points: 100, type: 'speed', bg: 'from-purple-600 to-pink-700' }
     ] : [
       { id: 0, label: '+75', points: 75, type: 'pts', bg: 'from-emerald-600 to-teal-700' },
-      { id: 1, label: '+100', points: 100, type: 'pts', bg: 'from-emerald-500 to-green-700' },
-      { id: 2, label: '+150', points: 150, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
-      { id: 3, label: '+250', points: 250, type: 'pts', bg: 'from-purple-600 to-pink-700' },
-      { id: 4, label: 'x2 SPEED', points: 150, type: 'speed', bg: 'from-rose-600 to-red-700' }
+      { id: 1, label: '+150', points: 150, type: 'pts', bg: 'from-cyan-600 to-blue-700' },
+      { id: 2, label: '+300', points: 300, type: 'pts', bg: 'from-amber-500 to-yellow-600' },
+      { id: 3, label: 'x2 SPEED', points: 150, type: 'speed', bg: 'from-purple-600 to-pink-700' }
     ];
 
-    // Fisher-Yates shuffle
+    // Initial random placement
     for (let i = baseCards.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [baseCards[i], baseCards[j]] = [baseCards[j], baseCards[i]];
     }
     this.bonusState.cards = baseCards;
-    this.bonusState.slots = [0, 1, 2, 3, 4];
+    this.bonusState.slots = [0, 1, 2, 3];
 
     // Reset UI
     const modal = document.getElementById('bonus-round-modal');
@@ -1586,7 +1665,7 @@ const App = {
 
     const instruction = document.getElementById('bonus-instruction-text');
     let previewSeconds = 3;
-    instruction.innerHTML = `Memorize the cards! Flipping in <span id="bonus-countdown" class="text-amber-400 font-extrabold text-base">${previewSeconds}</span>s...`;
+    instruction.innerHTML = `Track the best card! Flipping in <span id="bonus-countdown" class="text-amber-400 font-extrabold text-base">${previewSeconds}</span>s...`;
 
     this.renderBonusCards(false);
 
@@ -1610,7 +1689,7 @@ const App = {
       const cardEl = document.createElement('div');
       cardEl.id = `bonus-card-${card.id}`;
       cardEl.dataset.cardId = card.id;
-      cardEl.className = 'bonus-scene w-28 sm:w-36 h-40 sm:h-48 select-none transition-transform duration-300';
+      cardEl.className = 'bonus-scene w-32 sm:w-40 h-44 sm:h-52 select-none';
 
       cardEl.innerHTML = `
         <div class="bonus-card-container relative w-full h-full rounded-2xl shadow-xl transition-all duration-500 ${isFlipped ? 'is-flipped' : ''}">
@@ -1620,8 +1699,8 @@ const App = {
               ${card.type === 'speed' ? '⚡ MODIFIER' : '⭐ BONUS'}
             </span>
             <div class="text-center my-auto">
-              <p class="text-2xl sm:text-3xl font-black drop-shadow tracking-tight">${card.label}</p>
-              <p class="text-[11px] font-bold opacity-90">${card.type === 'speed' ? 'Speed' : 'Points'}</p>
+              <p class="text-3xl sm:text-4xl font-black drop-shadow tracking-tight">${card.label}</p>
+              <p class="text-xs font-bold opacity-90">${card.type === 'speed' ? 'Speed' : 'Points'}</p>
             </div>
             <div class="w-2 h-2 rounded-full bg-white/60"></div>
           </div>
@@ -1649,7 +1728,7 @@ const App = {
   flipAndShuffleBonusCards() {
     SoundEngine.playCardFlip();
     const instruction = document.getElementById('bonus-instruction-text');
-    instruction.innerText = '👀 Keep your eyes on the cards! Shuffling...';
+    instruction.innerText = '👀 Keep your eyes on the best card! Shuffling...';
 
     // Flip all cards to face down (?)
     document.querySelectorAll('.bonus-card-container').forEach(c => c.classList.add('is-flipped'));
@@ -1658,46 +1737,66 @@ const App = {
       let swapsDone = 0;
       const totalSwaps = 5;
 
-      const shuffleInterval = setInterval(() => {
-        swapsDone++;
-        SoundEngine.playCardShuffle();
-
+      const performSwap = () => {
         const grid = document.getElementById('bonus-cards-grid');
+        if (!grid) return;
         const cardElements = Array.from(grid.children);
         if (cardElements.length < 2) return;
 
+        // Pick two adjacent or random cards to smoothly slide and cross
         const i = Math.floor(Math.random() * cardElements.length);
-        let j = Math.floor(Math.random() * cardElements.length);
-        while (j === i) j = Math.floor(Math.random() * cardElements.length);
+        let j = (i + 1 + Math.floor(Math.random() * (cardElements.length - 1))) % cardElements.length;
 
         const cardA = cardElements[i];
         const cardB = cardElements[j];
 
-        cardA.style.transform = 'scale(0.92) translateY(-8px)';
-        cardB.style.transform = 'scale(0.92) translateY(8px)';
+        // Measure distance between cards for smooth animated translation
+        const rectA = cardA.getBoundingClientRect();
+        const rectB = cardB.getBoundingClientRect();
+        const deltaX = rectB.left - rectA.left;
+        const deltaY = rectB.top - rectA.top;
+
+        SoundEngine.playCardShuffle();
+
+        cardA.style.transition = 'transform 450ms cubic-bezier(0.25, 1, 0.5, 1)';
+        cardB.style.transition = 'transform 450ms cubic-bezier(0.25, 1, 0.5, 1)';
+        cardA.style.zIndex = '30';
+        cardB.style.zIndex = '20';
+        cardA.style.transform = `translate3d(${deltaX}px, ${deltaY - 12}px, 0) scale(1.05)`;
+        cardB.style.transform = `translate3d(${-deltaX}px, ${-deltaY + 12}px, 0) scale(0.95)`;
 
         setTimeout(() => {
-          const nextA = cardA.nextSibling;
-          if (nextA === cardB) {
-            grid.insertBefore(cardB, cardA);
-          } else {
-            grid.insertBefore(cardA, cardB);
-            if (nextA) grid.insertBefore(cardB, nextA);
-          }
+          // Reset styles and swap DOM elements
+          cardA.style.transition = 'none';
+          cardB.style.transition = 'none';
           cardA.style.transform = '';
           cardB.style.transform = '';
-        }, 160);
+          cardA.style.zIndex = '';
+          cardB.style.zIndex = '';
 
-        if (swapsDone >= totalSwaps) {
-          clearInterval(shuffleInterval);
-          setTimeout(() => {
-            this.bonusState.isPickable = true;
-            instruction.innerHTML = '👉 <strong class="text-amber-300 font-extrabold text-base">Pick a card</strong> to claim your bonus!';
-            document.querySelectorAll('.bonus-card-container').forEach(c => c.classList.add('bonus-card-pickable'));
-          }, 350);
-        }
-      }, 340);
-    }, 550);
+          const parent = cardA.parentNode;
+          if (parent) {
+            const siblingA = cardA.nextSibling === cardB ? cardA : cardA.nextSibling;
+            parent.insertBefore(cardA, cardB);
+            parent.insertBefore(cardB, siblingA);
+          }
+
+          swapsDone++;
+          if (swapsDone < totalSwaps) {
+            setTimeout(performSwap, 120);
+          } else {
+            // Shuffling complete! Allow student to pick
+            setTimeout(() => {
+              this.bonusState.isPickable = true;
+              instruction.innerHTML = '👉 <strong class="text-amber-300 font-extrabold text-base">Pick your card now!</strong>';
+              document.querySelectorAll('.bonus-card-container').forEach(c => c.classList.add('bonus-card-pickable'));
+            }, 300);
+          }
+        }, 460);
+      };
+
+      performSwap();
+    }, 600);
   },
 
   pickBonusCard(cardId) {

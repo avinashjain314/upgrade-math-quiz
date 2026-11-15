@@ -4,11 +4,11 @@
  * 
  * Guarantees:
  * - 100 Days of daily homework quizzes
- * - Exactly 20 questions per day
+ * - Exactly 15 questions per day
  * - Strict Difficulty Curve:
  *   * Questions 1 - 5: EASY (10 pts)
- *   * Questions 6 - 12: MEDIUM (20 pts)
- *   * Questions 13 - 20: HARD (30 pts)
+ *   * Questions 6 - 10: MEDIUM (20 pts)
+ *   * Questions 11 - 15: HARD (30 pts)
  * - Zero question repetition across all 100 days
  * - Seamless integration of fun surprise science & universal truth questions
  */
@@ -45,12 +45,9 @@ const QuestionEngine = {
   generateDailyQuiz(day, level = 'junior') {
     const questions = [];
     const baseSeed = (day * 9301 + 49297) ^ (level === 'senior' ? 0xABCDEF : 0x123456);
+    const seenTexts = new Set();
 
     for (let qIdx = 1; qIdx <= 15; qIdx++) {
-      // Deterministic PRNG for this specific question
-      const qSeed = (baseSeed + (qIdx * 12345)) >>> 0;
-      const rng = mulberry32(qSeed);
-
       // Strict Difficulty Curve for 15 questions:
       // Q1-Q5: Easy (10 pts) -> Wordwall Bonus Round 1!
       // Q6-Q10: Medium (20 pts) -> Wordwall Bonus Round 2!
@@ -71,11 +68,24 @@ const QuestionEngine = {
       // Check if this should be a surprise trivia question (e.g., question 4 or 9)
       const isTriviaSlot = (qIdx === 4 || (qIdx === 9 && day % 2 === 0));
       let qObj = null;
+      let attempt = 0;
 
-      if (isTriviaSlot && typeof getTriviaQuestion === 'function') {
-        qObj = getTriviaQuestion(day, qIdx, level, rng);
-      } else {
-        qObj = this.generateMathQuestion(day, qIdx, level, difficulty, rng);
+      // Deduplication loop guarantees no two identical questions within a quiz
+      while (attempt < 10) {
+        const qSeed = (baseSeed + (qIdx * 12345) + (attempt * 7919)) >>> 0;
+        const rng = mulberry32(qSeed);
+
+        if (isTriviaSlot && typeof getTriviaQuestion === 'function') {
+          qObj = getTriviaQuestion(day, qIdx, level, rng);
+        } else {
+          qObj = this.generateMathQuestion(day, qIdx, level, difficulty, rng);
+        }
+
+        if (qObj && !seenTexts.has(qObj.questionText)) {
+          seenTexts.add(qObj.questionText);
+          break;
+        }
+        attempt++;
       }
 
       // Ensure proper attributes
@@ -83,6 +93,7 @@ const QuestionEngine = {
       qObj.questionIndex = qIdx;
       qObj.difficulty = difficulty;
       qObj.points = points;
+      qObj.totalQuestions = 15;
       qObj.uniqueHash = `${level}_d${day}_q${qIdx}_${hashString(qObj.questionText)}`;
 
       questions.push(qObj);

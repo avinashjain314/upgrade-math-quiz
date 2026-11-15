@@ -133,8 +133,8 @@
         </form>
 
         <div class="pt-4 border-t border-slate-800/60 text-xs text-slate-400 space-y-2">
-          <p>✨ <strong>Avinash Sir Coaching Students:</strong> Free complete access!</p>
-          <p>🧪 Quick test demo mobile: <code class="bg-slate-950 px-2 py-0.5 rounded text-indigo-400 font-mono font-bold">9876543210</code></p>
+          <p>✨ <strong>Avinash Sir Coaching Students:</strong> Free complete 100-day access!</p>
+          <p>🎓 <strong>Other Students:</strong> ₹200 for full 100-day program (₹2/day)</p>
           <div class="mt-2 pt-2 border-t border-slate-800/40 text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
             <span>💬 If facing any issue, reach out to <strong>Avinash Sir</strong> on <a href="tel:9179799355" class="text-amber-300 font-bold font-mono underline hover:text-amber-200">9179799355</a> (Call / WhatsApp)</span>
           </div>
@@ -396,11 +396,11 @@
 
         <!-- Question Counter & Overall Quiz Progress Bar -->
         <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-          <span id="quiz-progress-text">Question 1 of 20</span>
-          <span>Target: 20/20</span>
+          <span id="quiz-progress-text">Question 1 of 15</span>
+          <span>Target: 15/15</span>
         </div>
         <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-          <div id="quiz-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300 w-1/20"></div>
+          <div id="quiz-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-pink-500 transition-all duration-300 w-1/15"></div>
         </div>
       </div>
 
@@ -634,6 +634,39 @@
                   <option value="INACTIVE">INACTIVE</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Past Quiz & Day Unlock Overrides -->
+            <div class="p-3.5 bg-slate-900/90 rounded-xl border border-indigo-500/30 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                  <span>🔓</span> Past Quiz & Day Unlock Overrides
+                </span>
+                <span id="admin-target-progress-summary" class="text-[11px] text-slate-400 font-mono"></span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">All Past Days Access</label>
+                  <select id="admin-edit-override" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500">
+                    <option value="None">None (Standard Daily Progression)</option>
+                    <option value="All Past Days">All Past Days (Unlock All Past Days for Student)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">Make Specific Missed Quiz Active</label>
+                  <div class="flex gap-2">
+                    <input type="number" id="admin-reactivate-day" min="1" max="100" placeholder="Day #" class="w-24 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400">
+                    <button type="button" onclick="App.adminReactivateMissedDay()" id="admin-reactivate-btn" class="flex-1 py-2 px-3 bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl transition shadow flex items-center justify-center gap-1">
+                      <span>🔓 Make Active</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-400">
+                💡 Entering a day number (e.g. 1 or 2) resets that day in the sheet so the student can immediately take the quiz!
+              </p>
             </div>
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
@@ -889,7 +922,7 @@
       <div class="bg-gradient-to-br from-indigo-950 via-slate-950 to-purple-950 border border-indigo-500/40 p-5 rounded-2xl space-y-2">
         <p class="text-xs text-slate-400">Total Score Earned</p>
         <p id="result-score-text" class="text-3xl font-black text-amber-400">0 Points</p>
-        <p id="result-accuracy-text" class="text-xs font-bold text-emerald-400">20/20 Correct (100%)</p>
+        <p id="result-accuracy-text" class="text-xs font-bold text-emerald-400">15/15 Correct (100%)</p>
       </div>
 
       <!-- Mystery Chest Section -->
@@ -1144,19 +1177,19 @@
     </div>
   </div>
 
-  <!-- APPLICATION SCRIPTS (IN STRICT DEPENDENCY ORDER) -->
-  <script src="js/data/badges.js"></script>
-  <script src="js/data/vedicTricks.js"></script>
-  <script src="js/data/holisticGrowth.js"></script>
-  <script src="js/topics/funTrivia.js"></script>
-  <script src="js/topics/juniorMath.js"></script>
-  <script src="js/topics/seniorMath.js"></script>
-  <script src="js/questionEngine.js"></script>
-  <script src="js/sound.js"></script>
-  <script src="js/roughPad.js"></script>
-  <script src="js/sheetSync.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/leaderboard.js"></script>
-  <script src="js/app.js"></script>
+  <!-- APPLICATION SCRIPTS (IN STRICT DEPENDENCY ORDER WITH CACHE-BUSTING) -->
+  <script src="js/data/badges.js?v=20261115_v2_final"></script>
+  <script src="js/data/vedicTricks.js?v=20261115_v2_final"></script>
+  <script src="js/data/holisticGrowth.js?v=20261115_v2_final"></script>
+  <script src="js/topics/funTrivia.js?v=20261115_v2_final"></script>
+  <script src="js/topics/juniorMath.js?v=20261115_v2_final"></script>
+  <script src="js/topics/seniorMath.js?v=20261115_v2_final"></script>
+  <script src="js/questionEngine.js?v=20261115_v2_final"></script>
+  <script src="js/sound.js?v=20261115_v2_final"></script>
+  <script src="js/roughPad.js?v=20261115_v2_final"></script>
+  <script src="js/sheetSync.js?v=20261115_v2_final"></script>
+  <script src="js/auth.js?v=20261115_v2_final"></script>
+  <script src="js/leaderboard.js?v=20261115_v2_final"></script>
+  <script src="js/app.js?v=20261115_v2_final"></script>
 </body>
 </html>

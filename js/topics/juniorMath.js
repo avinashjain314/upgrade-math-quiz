@@ -14,10 +14,26 @@
  * Upgrade Math Quiz by Avinash Sir
  */
 
+const JUNIOR_STUDENT_NAMES = [
+  'Ardiya', 'Aarav', 'Sara', 'Yousuf', 'Kalsoom', 'Omar', 'Ali',
+  'Shrinay', 'Shrihaan', 'Aanya', 'Avinash', 'Shruti', 'Aayush'
+];
+
 const JuniorMath = {
   // Helper to pick random element
   pick(arr, rng) {
     return arr[Math.floor(rng() * arr.length)];
+  },
+
+  pickName(rng) {
+    return JUNIOR_STUDENT_NAMES[Math.floor(rng() * JUNIOR_STUDENT_NAMES.length)];
+  },
+
+  pickTwoNames(rng) {
+    const idx1 = Math.floor(rng() * JUNIOR_STUDENT_NAMES.length);
+    let idx2 = Math.floor(rng() * JUNIOR_STUDENT_NAMES.length);
+    while (idx2 === idx1) idx2 = Math.floor(rng() * JUNIOR_STUDENT_NAMES.length);
+    return [JUNIOR_STUDENT_NAMES[idx1], JUNIOR_STUDENT_NAMES[idx2]];
   },
 
   // Helper to create 4 unique multiple choice options
@@ -202,11 +218,10 @@ const JuniorMath = {
 
   // 5. WORD PROBLEMS / STORY SUMS
   genWordProblem(day, diff, rng) {
-    const names = ['Sara', 'Aanya', 'Aarav', 'Ardiya', 'Omar', 'Kalsoom', 'Ali', 'Adam', 'Yousuf', 'Avinash', 'Shrihaan', 'Shrinay'];
-    const name = this.pick(names, rng);
+    const name = this.pickName(rng);
 
     if (diff === 'easy') {
-      const items = ['chocolates', 'apples', 'colored pencils', 'stickers', 'cricket balls'];
+      const items = ['chocolates', 'apples', 'colored pencils', 'stickers', 'cricket balls', 'books'];
       const item = this.pick(items, rng);
       const initial = Math.floor(rng() * 30) + 20;
       const gave = Math.floor(rng() * (initial - 5)) + 5;
@@ -215,7 +230,7 @@ const JuniorMath = {
       return {
         topic: 'Word Problems',
         difficulty: diff,
-        questionText: `${name} had ${initial} ${item}. He gave ${gave} of them to his best friend. How many ${item} are left with ${name}?`,
+        questionText: `${name} had ${initial} ${item}. They gave ${gave} of them to a friend. How many ${item} are left with ${name}?`,
         options: opts.options,
         correctIndex: opts.correctIndex,
         correctAnswer: opts.correctAnswer,
@@ -270,13 +285,14 @@ const JuniorMath = {
       const chosen = this.pick(fracs, rng);
       const totalSlices = chosen.den * (Math.floor(rng() * 2) + 1);
       const eaten = totalSlices * (chosen.num / chosen.den);
+      const studentName = this.pickName(rng);
 
       const options = ['one half (1/2)', 'one quarter (1/4)', 'three quarters (3/4)', 'one third (1/3)'];
       const correctIndex = options.indexOf(chosen.label);
       return {
         topic: 'Fractions',
         difficulty: diff,
-        questionText: `A pizza is cut into ${totalSlices} equal slices. If Sara eats ${eaten} slice(s), what fraction of the pizza did she eat?`,
+        questionText: `A pizza is cut into ${totalSlices} equal slices. If ${studentName} eats ${eaten} slice(s), what fraction of the pizza did they eat?`,
         options: options,
         correctIndex: correctIndex,
         correctAnswer: chosen.label,
@@ -446,26 +462,63 @@ const JuniorMath = {
     }
   },
 
-  // 9. MEASUREMENT (INDIAN UNITS)
+  // 9. MEASUREMENT (METRIC UNITS)
   genMeasurement(day, diff, rng) {
     if (diff === 'easy') {
-      const conversions = [
-        { q: 'How many centimeters (cm) are in 1 meter (m)?', ans: '100 cm', opts: ['10 cm', '100 cm', '1000 cm', '60 cm'] },
-        { q: 'How many grams (g) make 1 kilogram (kg)?', ans: '1000 g', opts: ['100 g', '500 g', '1000 g', '10 g'] },
-        { q: 'How many milliliters (mL) are in 1 liter (L)?', ans: '1000 mL', opts: ['100 mL', '500 mL', '1000 mL', '10,000 mL'] },
-        { q: 'How many meters (m) make 1 kilometer (km)?', ans: '1000 m', opts: ['100 m', '500 m', '1000 m', '60 m'] }
-      ];
-      const item = this.pick(conversions, rng);
-      const shuffled = [...item.opts].sort(() => rng() - 0.5);
-      return {
-        topic: 'Measurement',
-        difficulty: diff,
-        questionText: item.q,
-        options: shuffled,
-        correctIndex: shuffled.indexOf(item.ans),
-        correctAnswer: item.ans,
-        explanation: `Standard metric conversion: ${item.ans}.`
-      };
+      const typeRoll = Math.floor(rng() * 4);
+      if (typeRoll === 0) {
+        const km = Math.floor(rng() * 8) + 2;
+        const ans = km * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} m`);
+        return {
+          topic: 'Measurement',
+          difficulty: diff,
+          questionText: `Convert ${km} kilometers (km) into meters (m):`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 kilometer = 1,000 meters. Therefore, ${km} km = ${km} × 1,000 = ${ans} m.`
+        };
+      } else if (typeRoll === 1) {
+        const kg = Math.floor(rng() * 7) + 2;
+        const ans = kg * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} g`);
+        return {
+          topic: 'Measurement',
+          difficulty: diff,
+          questionText: `How many grams (g) are in ${kg} kilograms (kg)?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 kg = 1,000 g. Therefore, ${kg} kg = ${kg} × 1,000 = ${ans} g.`
+        };
+      } else if (typeRoll === 2) {
+        const L = Math.floor(rng() * 6) + 2;
+        const ans = L * 1000;
+        const opts = this.makeOptions(ans, [100, -100, 1000, -1000], rng, (v) => `${v} mL`);
+        return {
+          topic: 'Measurement',
+          difficulty: diff,
+          questionText: `Convert ${L} Liters (L) into milliliters (mL):`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 Liter = 1,000 mL. Therefore, ${L} L = ${L} × 1,000 = ${ans} mL.`
+        };
+      } else {
+        const m = Math.floor(rng() * 12) + 3;
+        const ans = m * 100;
+        const opts = this.makeOptions(ans, [10, -10, 100, -100], rng, (v) => `${v} cm`);
+        return {
+          topic: 'Measurement',
+          difficulty: diff,
+          questionText: `How many centimeters (cm) are in ${m} meters (m)?`,
+          options: opts.options,
+          correctIndex: opts.correctIndex,
+          correctAnswer: opts.correctAnswer,
+          explanation: `1 meter = 100 cm. Therefore, ${m} m = ${m} × 100 = ${ans} cm.`
+        };
+      }
     } else if (diff === 'medium') {
       // Convert km to m or kg to g
       const km = Math.floor(rng() * 7) + 2;
@@ -631,10 +684,11 @@ const JuniorMath = {
       const noteGiven = bill <= 50 ? 50 : (bill <= 100 ? 100 : 200);
       const change = noteGiven - bill;
       const opts = this.makeOptions(change, [5, -5, 10, -10], rng, (v) => `$${v}`);
+      const studentName = this.pickName(rng);
       return {
         topic: 'Money',
         difficulty: diff,
-        questionText: `Aarav bought a notebook for $${p1} and a compass box for $${p2}. If he pays the shopkeeper with a $${noteGiven} bill, how much change should he receive?`,
+        questionText: `${studentName} bought a notebook for $${p1} and a compass box for $${p2}. If they pay the shopkeeper with a $${noteGiven} bill, how much change should they receive?`,
         options: opts.options,
         correctIndex: opts.correctIndex,
         correctAnswer: opts.correctAnswer,

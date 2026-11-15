@@ -23,53 +23,47 @@ const Auth = {
     return this.currentUser;
   },
 
-  // Current program day (1 to 100) personalized to each student's journey from their enrollment date!
+  // Current program day (1 to 100): Sequential journey! Always starts at Day 1 and advances Day-by-Day
   getCurrentProgramDay(user = null) {
-    // If admin set a manual test override in Settings, respect it
-    const manual = localStorage.getItem('umq_program_day_manual');
-    if (manual) {
-      return parseInt(manual, 10);
-    }
-
     const student = user || this.currentUser;
     if (!student) return 1;
 
+    // If Avinash Sir set a manual test override in Settings, respect it
+    const manual = localStorage.getItem('umq_program_day_manual');
+    if (manual && (this.isAdmin || student.phone === '9179799355' || student.phone === '9999999999')) {
+      return parseInt(manual, 10);
+    }
+
+    // Determine the student's next unattempted day
+    const attempted = student.attemptedDays || {};
+    let nextDay = 1;
+    while (nextDay <= 100 && (attempted[nextDay] || this.isDayAttemptedForUser(nextDay, student))) {
+      nextDay++;
+    }
+    return Math.max(1, Math.min(100, nextDay));
+  },
+
+  // Checks whether the student has already completed a quiz today (in Indian Standard Time)
+  hasCompletedQuizToday(user = null) {
+    const student = user || this.currentUser;
+    if (!student || !student.lastActiveDate) return false;
+
     try {
-      // 1. Determine student's start/registration date in IST
-      let regDateStr = student.registrationDate;
-      const cleanPhone = String(student.phone || '').replace(/\D/g, '');
+      const lastDate = new Date(student.lastActiveDate);
+      if (isNaN(lastDate.getTime())) return false;
 
-      if (!regDateStr) {
-        // Avinash Sir's account started on Nov 12, 2026
-        if (cleanPhone === '9179799355' || cleanPhone === '9999999999') {
-          regDateStr = '2026-11-12T00:00:00+05:30';
-        } else {
-          // If no registration date recorded, set to today so they start on Day 1
-          regDateStr = new Date().toISOString();
-          student.registrationDate = regDateStr;
-          SheetSync.saveLocalUser(student);
-        }
-      }
-
-      // Convert registration date to IST midnight
-      const regDate = new Date(regDateStr);
+      // Convert both timestamps to IST calendar date string (YYYY-MM-DD)
       const istOffsetMs = 5.5 * 60 * 60 * 1000;
-      const regIst = new Date(regDate.getTime() + (regDate.getTimezoneOffset() * 60000) + istOffsetMs);
-      const regMidnight = new Date(regIst.getFullYear(), regIst.getMonth(), regIst.getDate());
+      const lastIst = new Date(lastDate.getTime() + (lastDate.getTimezoneOffset() * 60000) + istOffsetMs);
+      const lastStr = `${lastIst.getFullYear()}-${String(lastIst.getMonth() + 1).padStart(2, '0')}-${String(lastIst.getDate()).padStart(2, '0')}`;
 
-      // Current date in IST midnight
       const now = new Date();
       const nowIst = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + istOffsetMs);
-      const currentMidnight = new Date(nowIst.getFullYear(), nowIst.getMonth(), nowIst.getDate());
+      const todayStr = `${nowIst.getFullYear()}-${String(nowIst.getMonth() + 1).padStart(2, '0')}-${String(nowIst.getDate()).padStart(2, '0')}`;
 
-      // Difference in calendar days
-      const diffMs = currentMidnight.getTime() - regMidnight.getTime();
-      const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-      const calculatedDay = diffDays + 1; // Joined today -> Day 1! Joined yesterday -> Day 2!
-
-      return Math.max(1, Math.min(100, calculatedDay));
+      return (lastStr === todayStr && Number(student.quizzesCompleted) > 0);
     } catch (e) {
-      return 1;
+      return false;
     }
   },
 
@@ -205,11 +199,15 @@ const Auth = {
 
   // Check if a specific day was already attempted by THIS student
   isDayAttempted(dayNumber) {
-    if (!this.currentUser) return false;
-    const cleanPhone = String(this.currentUser.phone || '').trim().replace(/\D/g, '');
+    return this.isDayAttemptedForUser(dayNumber, this.currentUser);
+  },
+
+  isDayAttemptedForUser(dayNumber, user) {
+    if (!user) return false;
+    const cleanPhone = String(user.phone || '').trim().replace(/\D/g, '');
 
     // Check user's attemptedDays record
-    if (this.currentUser.attemptedDays && this.currentUser.attemptedDays[dayNumber]) {
+    if (user.attemptedDays && user.attemptedDays[dayNumber]) {
       return true;
     }
     // Cross-check history STRICTLY for this student's mobile number
@@ -219,43 +217,46 @@ const Auth = {
 
   // Determine access status for a day
   getDayStatus(dayNumber) {
-    if (!this.currentUser) return { state: 'locked', reason: 'Please login' };
-
-    const today = this.getCurrentProgramDay();
-    const isAttempted = this.isDayAttempted(dayNumber);
+    if (!this.currentUser) return { state: 'locked', canPlay: false, canReview: false, label: 'Please Login' };
 
     // 1. If already attempted: single attempt rule means it's closed (review solutions only)
+    const isAttempted = this.isDayAttempted(dayNumber);
     if (isAttempted) {
       return { state: 'attempted', canPlay: false, canReview: true, label: 'Attempted' };
     }
 
     // 2. Admin has universal access
-    if (this.currentUser.isAdmin) {
+    if (this.currentUser.isAdmin || this.isAdmin || this.currentUser.phone === '9179799355' || this.currentUser.phone === '9999999999') {
       return { state: 'unlocked', canPlay: true, canReview: false, label: 'Admin Unlocked' };
     }
 
-    // 3. Today's Quiz (Available to take!)
-    if (dayNumber === today) {
-      return { state: 'today', canPlay: true, canReview: false, label: 'Today\'s Quiz' };
+    // 3. Admin unlock override from Google Sheet (Column E)
+    const override = String(this.currentUser.adminUnlockOverride || 'None').trim();
+    const isAllUnlocked = (override === 'All Past Days' || override === 'ALL_UNLOCKED');
+    const isSpecificUnlocked = override.split(',').map(s => s.trim().replace(/\D/g, '')).includes(String(dayNumber));
+    if (isAllUnlocked || isSpecificUnlocked) {
+      return { state: 'admin_unlocked', canPlay: true, canReview: false, label: 'Admin Unlocked' };
     }
 
-    // 4. Past Day (< Today) that was missed:
-    if (dayNumber < today) {
-      // Check if Avinash Sir unlocked it from Google Sheet via Admin_Unlock_Override dropdown
-      const override = String(this.currentUser.adminUnlockOverride || 'None').trim();
-      const isAllUnlocked = (override === 'All Past Days' || override === 'ALL_UNLOCKED');
-      const isSpecificUnlocked = override.split(',').map(s => s.trim().replace(/\D/g, '')).includes(String(dayNumber));
+    const currentActiveDay = this.getCurrentProgramDay();
+    const completedToday = this.hasCompletedQuizToday();
 
-      if (isAllUnlocked || isSpecificUnlocked) {
-        return { state: 'admin_unlocked', canPlay: true, canReview: false, label: 'Admin Unlocked' };
+    // 4. Current sequential day
+    if (dayNumber === currentActiveDay) {
+      if (completedToday) {
+        return { state: 'daily_completed', canPlay: false, canReview: false, label: 'Unlocks Tomorrow' };
       } else {
-        // Missed and locked by default!
-        return { state: 'missed_locked', canPlay: false, canReview: false, label: 'Missed & Locked' };
+        return { state: 'today', canPlay: true, canReview: false, label: "Today's Quiz" };
       }
     }
 
-    // 5. Future Day (> Today)
-    return { state: 'future_locked', canPlay: false, canReview: false, label: `Unlocks Day ${dayNumber}` };
+    // 5. Past unattempted days (< currentActiveDay) - only possible if manual or override gap
+    if (dayNumber < currentActiveDay) {
+      return { state: 'admin_locked', canPlay: false, canReview: false, label: 'Locked (Ask Avinash Sir)' };
+    }
+
+    // 6. Future days (> currentActiveDay)
+    return { state: 'future_locked', canPlay: false, canReview: false, label: `Unlocks on Day ${dayNumber}` };
   }
 };
 
