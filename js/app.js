@@ -1425,18 +1425,6 @@ const App = {
     });
   },
 
-  async submitPaymentUtr() {
-    const utrInput = document.getElementById('payment-utr-input');
-    const utrVal = utrInput ? utrInput.value.trim() : '';
-
-    if (!utrVal || utrVal.length < 6) {
-      alert('Please enter your 12-digit UTR or Transaction ID from your payment receipt.');
-      return;
-    }
-
-    if (!this.currentPaymentStudent) {
-      alert('Student session expired. Please re-enter your mobile number.');
-      this.closePaymentModal();
   handleScreenshotSelected(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;

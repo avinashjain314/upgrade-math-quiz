@@ -593,7 +593,6 @@ function handlePaymentSubmitted(data) {
     screenshotUrl: screenshotUrl
   });
 }
-}
 
 /**
  * Updates student profile (Name and/or Level track)
