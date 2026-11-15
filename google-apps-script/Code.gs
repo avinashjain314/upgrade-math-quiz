@@ -431,6 +431,32 @@ function handleRegister(data) {
   
   sheet.appendRow(newRow);
   SpreadsheetApp.flush();
+
+  // Instant Email Notification to Avinash Sir on New Registration
+  try {
+    const notifyEmail = 'avinashjain314@gmail.com';
+    const regSubject = '👤 [Upgrade Math Quiz] New Student Registered: ' + name + ' (' + phone + ')';
+    const regBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #4f46e5; margin-top: 0;">👤 New Student Registration! 🚀</h2>
+        <p>A new student has registered on <strong>Upgrade Math Quiz</strong>:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold; width: 140px;">Student Name:</td><td style="padding: 10px; font-weight: bold;">${name}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Mobile Number:</td><td style="padding: 10px; font-family: monospace; font-size: 15px;">${phone}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Grade / Track:</td><td style="padding: 10px;">${level}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Status:</td><td style="padding: 10px; font-weight: bold; color: ${isCoaching ? '#16a34a' : '#d97706'};">${initialStatus}</td></tr>
+        </table>
+        <p><a href="${ss.getUrl()}" target="_blank" style="background: #4f46e5; color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">📊 Open Upgrade_Digital_Quiz Google Sheet</a></p>
+      </div>
+    `;
+    MailApp.sendEmail({
+      to: notifyEmail,
+      subject: regSubject,
+      htmlBody: regBody
+    });
+  } catch (mErr) {
+    Logger.log("Register email notification error: " + mErr);
+  }
   
   return jsonResponse({
     status: 'success',
@@ -456,6 +482,7 @@ function handlePaymentSubmitted(data) {
   const name = String(data.studentName || data.name || 'Student').trim();
   const level = data.level || 'Junior (Grade 1-4)';
   const amount = data.amount || '200';
+  const screenshotData = String(data.screenshotData || '');
   
   if (!phone) {
     return jsonResponse({ status: 'error', message: 'Phone number is required.' });
@@ -466,6 +493,24 @@ function handlePaymentSubmitted(data) {
   if (!sheet) {
     setupSheets();
     sheet = getStudentSheet(ss);
+  }
+
+  // 1. Process & Save Payment Screenshot to Google Drive
+  let screenshotUrl = '';
+  if (screenshotData && screenshotData.indexOf('base64,') !== -1) {
+    try {
+      const base64Str = screenshotData.split('base64,')[1];
+      const decoded = Utilities.base64Decode(base64Str);
+      const mimeType = screenshotData.includes('image/png') ? 'image/png' : 'image/jpeg';
+      const ext = mimeType === 'image/png' ? '.png' : '.jpg';
+      const blob = Utilities.newBlob(decoded, mimeType, 'Payment_' + phone + '_' + Date.now() + ext);
+      
+      const file = DriveApp.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      screenshotUrl = file.getUrl();
+    } catch (driveErr) {
+      Logger.log('DriveApp screenshot save error: ' + driveErr);
+    }
   }
 
   const dataRows = sheet.getDataRange().getValues();
@@ -479,9 +524,13 @@ function handlePaymentSubmitted(data) {
   }
 
   const now = new Date();
+  const overrideVal = screenshotUrl 
+    ? '=HYPERLINK("' + screenshotUrl + '", "📸 View Payment Screenshot")'
+    : (utr ? 'UTR: ' + utr + ' (Rs ' + amount + ')' : 'Screenshot Uploaded (Rs ' + amount + ')');
+
   if (rowIndex > 0) {
     sheet.getRange(rowIndex, 4).setValue('PENDING_APPROVAL');
-    sheet.getRange(rowIndex, 5).setValue('UTR: ' + utr + ' (Rs ' + amount + ')');
+    sheet.getRange(rowIndex, 5).setValue(overrideVal);
     sheet.getRange(rowIndex, 10).setValue(now.toISOString());
   } else {
     const newRow = [
@@ -489,7 +538,7 @@ function handlePaymentSubmitted(data) {
       name,
       level,
       'PENDING_APPROVAL',
-      'UTR: ' + utr + ' (Rs ' + amount + ')',
+      overrideVal,
       0, 0, 0,
       now.toISOString(),
       now.toISOString()
@@ -499,49 +548,51 @@ function handlePaymentSubmitted(data) {
   }
   SpreadsheetApp.flush();
 
-  // Send Instant Email Notification to Avinash Sir
+  // 2. Send Instant Email Notification directly to Avinash Sir
   try {
-    const adminEmail = Session.getEffectiveUser().getEmail();
-    if (adminEmail) {
-      const subject = "🔔 [Upgrade Math Quiz] New Rs " + amount + " Payment: " + name + " (" + phone + ")";
-      const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-          <h2 style="color: #4f46e5; margin-top: 0;">🔔 New Payment Received for Upgrade Math Quiz!</h2>
-          <p>Hello Avinash Sir,</p>
-          <p>A student has submitted payment for the <strong>100-Day Upgrade Math Quiz</strong> program.</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Student Name:</strong></td><td style="padding: 8px; font-weight: bold;">${name}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Mobile Number:</strong></td><td style="padding: 8px; font-weight: bold;">${phone}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Level:</strong></td><td style="padding: 8px;">${level}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>Amount Paid:</strong></td><td style="padding: 8px; font-weight: bold; color: #16a34a;">Rs ${amount}</td></tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px; color: #64748b;"><strong>UTR / Reference ID:</strong></td><td style="padding: 8px; font-family: monospace; background: #f8fafc;">${utr || 'Not provided'}</td></tr>
-            <tr><td style="padding: 8px; color: #64748b;"><strong>Date:</strong></td><td style="padding: 8px;">${now.toLocaleString()}</td></tr>
-          </table>
-          <div style="background: #eef2ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #3730a3; font-weight: bold;">How to Activate this Student:</p>
-            <ol style="margin: 8px 0 0 20px; color: #4338ca; padding: 0;">
-              <li>Open your Google Sheet: <a href="https://docs.google.com/spreadsheets/d/1u_ITXVTH8Q-Du72M_uPwbYz15SMgHxIQxP5OUy6xIB4" target="_blank">Upgrade_Digital_Quiz</a></li>
-              <li>Find the row for <strong>${phone}</strong></li>
-              <li>In <strong>Column D (Status)</strong>, change <code>PENDING_APPROVAL</code> to <strong><code>ACTIVE</code></strong></li>
-            </ol>
-          </div>
-          <p style="color: #64748b; font-size: 12px; margin-top: 30px;">Upgrade Math Quiz automated notification engine</p>
+    const adminEmail = 'avinashjain314@gmail.com';
+    const subject = "📸 [Upgrade Math Quiz] New Payment Screenshot: " + name + " (" + phone + ")";
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #4f46e5; margin-top: 0;">📸 New Payment Screenshot Submitted!</h2>
+        <p>Hello Avinash Sir,</p>
+        <p>A parent has just submitted their ₹${amount} payment screenshot for <strong>Upgrade Math Quiz (100-Day Program)</strong>:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold; width: 140px;">Student Name:</td><td style="padding: 10px; font-weight: bold;">${name}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Mobile Number:</td><td style="padding: 10px; font-weight: bold; font-family: monospace; font-size: 15px;">${phone}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Grade / Track:</td><td style="padding: 10px;">${level}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Amount:</td><td style="padding: 10px; font-weight: bold; color: #16a34a;">₹${amount}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 10px; color: #64748b; font-weight: bold;">Status:</td><td style="padding: 10px; font-weight: bold; color: #d97706;">PENDING APPROVAL</td></tr>
+          ${screenshotUrl ? `<tr><td style="padding: 10px; color: #64748b; font-weight: bold;">Payment Screenshot:</td><td style="padding: 10px;"><a href="${screenshotUrl}" target="_blank" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">📸 Open Payment Screenshot</a></td></tr>` : ''}
+        </table>
+        
+        <div style="background: #eef2ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0; color: #3730a3; font-weight: bold;">How to Activate this Student:</p>
+          <ol style="margin: 8px 0 0 20px; color: #4338ca; padding: 0; line-height: 1.6;">
+            <li>View the payment screenshot via the button above.</li>
+            <li>Open your Google Sheet or use your in-app <strong>Student Management Desk</strong>.</li>
+            <li>In <strong>Column D (Status)</strong>, change <code>PENDING_APPROVAL</code> to <strong><code>ACTIVE</code></strong>.</li>
+          </ol>
         </div>
-      `;
-      MailApp.sendEmail({
-        to: adminEmail,
-        subject: subject,
-        htmlBody: htmlBody
-      });
-    }
+
+        <p><a href="${ss.getUrl()}" target="_blank" style="background: #4f46e5; color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">📊 Open Upgrade_Digital_Quiz Google Sheet</a></p>
+      </div>
+    `;
+    MailApp.sendEmail({
+      to: adminEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
   } catch (mailErr) {
-    Logger.log("Email notification error: " + mailErr);
+    Logger.log("Payment email send error: " + mailErr);
   }
 
   return jsonResponse({
     status: 'success',
-    message: 'Payment details submitted successfully! Avinash Sir has been notified.'
+    message: 'Payment screenshot submitted! Verification in progress.',
+    screenshotUrl: screenshotUrl
   });
+}
 }
 
 /**

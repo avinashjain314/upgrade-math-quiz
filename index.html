@@ -132,10 +132,17 @@
           </button>
         </form>
 
-        <div class="pt-4 border-t border-slate-800/60 text-xs text-slate-400 space-y-2">
-          <p>✨ <strong>Avinash Sir Coaching Students:</strong> Free complete 100-day access!</p>
-          <p>🎓 <strong>Other Students:</strong> ₹200 for full 100-day program (₹2/day)</p>
-          <div class="mt-2 pt-2 border-t border-slate-800/40 text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+        <div class="pt-4 border-t border-slate-800/60 space-y-3">
+          <div class="bg-gradient-to-r from-indigo-950/80 via-purple-950/80 to-slate-950/90 border border-indigo-500/40 rounded-2xl p-4 text-center shadow-lg space-y-1.5">
+            <p class="text-xs sm:text-sm font-bold text-amber-300 leading-relaxed">
+              ✨ "Netflix, Amazon Prime ke subscriptions toh bohot liye honge, ab lijiye ek aisa subscription jo aapke bacchon ko smart banaye! 🚀"
+            </p>
+            <p class="text-[11px] text-slate-200 font-medium">
+              One-time fee of just <strong class="text-emerald-400 font-extrabold text-xs">₹200</strong> for complete 100 days which is just <strong class="text-emerald-400 font-extrabold text-xs">₹2/day</strong>.
+            </p>
+          </div>
+
+          <div class="text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60 text-center">
             <span>💬 If facing any issue, reach out to <strong>Avinash Sir</strong> on <a href="tel:9179799355" class="text-amber-300 font-bold font-mono underline hover:text-amber-200">9179799355</a> (Call / WhatsApp)</span>
           </div>
         </div>
@@ -1065,6 +1072,12 @@
       <!-- UPI QR Code + Direct Payment -->
       <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4 text-center">
         <p class="text-xs font-bold text-slate-300">Step 1: Scan & Pay ₹200 with any UPI App (GPay, PhonePe, Paytm, BHIM):</p>
+
+        <!-- Prominent Step 1 Announcement for Screenshot -->
+        <div class="bg-amber-500/15 border border-amber-500/40 rounded-xl p-3 text-xs text-amber-300 font-bold flex items-center justify-center gap-2 text-center shadow-md">
+          <span class="text-base">📸</span>
+          <span><strong>IMPORTANT:</strong> Take a screenshot of your successful payment screen. You will upload it in Step 2 below for instant verification!</span>
+        </div>
         
         <!-- Avinash Sir Google Pay QR Image with ₹200 Autofilled -->
         <div class="flex flex-col items-center">
@@ -1118,35 +1131,78 @@
         </div>
       </div>
 
-      <!-- Action Section 1: Submit UTR -->
-      <div id="payment-submit-section" class="space-y-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">
-            Step 2: Enter 12-digit UTR / UPI Reference ID or PayPal Transaction ID after payment:
+      <!-- Action Section 1: Step 2 Upload Screenshot -->
+      <div id="payment-submit-section" class="space-y-4">
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
+            <label class="block text-xs font-bold text-slate-200">
+              Step 2: Upload Payment Success Screenshot:
+            </label>
+          </div>
+
+          <!-- Drag & Drop / File Input Box -->
+          <label for="payment-screenshot-input" id="payment-dropzone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition bg-slate-900/40 hover:bg-slate-900/80 text-center relative group">
+            <input type="file" id="payment-screenshot-input" accept="image/*" class="sr-only" onchange="App.handleScreenshotSelected(event)">
+            
+            <!-- Placeholder State -->
+            <div id="screenshot-placeholder" class="space-y-1.5 py-3">
+              <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl group-hover:scale-110 transition shadow-inner">
+                📷
+              </div>
+              <p class="text-xs font-bold text-white">Tap to Choose or Take Screenshot</p>
+              <p class="text-[10px] text-slate-400">Supports PNG, JPG, JPEG from your gallery or camera</p>
+            </div>
+
+            <!-- Preview State -->
+            <div id="screenshot-preview-container" class="hidden flex flex-col items-center gap-2 py-1 w-full">
+              <img id="screenshot-preview-img" src="" alt="Payment Screenshot Preview" class="max-h-52 rounded-xl object-contain border border-indigo-500/50 shadow-xl">
+              <div class="flex items-center justify-center gap-3 text-xs mt-1">
+                <span class="text-emerald-400 font-bold flex items-center gap-1">✓ Screenshot Selected</span>
+                <span class="text-slate-500">·</span>
+                <span class="text-indigo-400 hover:text-indigo-300 underline font-semibold text-[11px]">Tap to Change Image</span>
+              </div>
+            </div>
           </label>
-          <input type="text" id="payment-utr-input" maxlength="32" placeholder="e.g. 431289567823 (12-digit UTR, UPI Ref, or PayPal ID)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono">
+
+          <!-- Fallback Help Line -->
+          <div class="pt-1 text-[11px] text-slate-400 text-center leading-relaxed">
+            Facing difficulty in uploading the screenshot? Send it to Avinash Sir directly on WhatsApp at <a href="https://wa.me/919179799355?text=Hello%20Avinash%20Sir%2C%20here%20is%20my%20payment%20screenshot%20for%20Upgrade%20Math%20Quiz" target="_blank" class="text-emerald-400 font-bold underline hover:text-emerald-300">9179799355</a> for faster approval.
+          </div>
         </div>
-        <button onclick="App.submitPaymentUtr()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white font-black rounded-xl shadow-lg transition transform active:scale-95 text-sm flex items-center justify-center gap-2">
-          <span>🚀 I Have Paid · Submit for Approval</span>
+
+        <button onclick="App.submitPaymentScreenshot()" id="btn-submit-payment" class="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:opacity-95 text-white font-black rounded-2xl shadow-xl shadow-emerald-600/25 transition transform active:scale-95 text-sm flex items-center justify-center gap-2">
+          <span>🚀 I Have Paid · Submit Screenshot for Approval</span>
         </button>
       </div>
 
-      <!-- Action Section 2: Pending Approval -->
-      <div id="payment-pending-section" class="hidden bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 text-center space-y-3">
-        <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl animate-pulse">
-          ⏳
+      <!-- Action Section 2: Pending Approval Reassurance -->
+      <div id="payment-pending-section" class="hidden bg-gradient-to-b from-indigo-950/60 to-slate-950/90 border border-indigo-500/40 rounded-3xl p-5 text-center space-y-4 shadow-xl">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-3xl shadow-lg">
+          ✅
         </div>
-        <div>
-          <h4 class="font-extrabold text-sm text-amber-300">Payment Submitted for Approval!</h4>
-          <p class="text-xs text-slate-300 mt-1">
-            Avinash Sir has received an instant notification email. Once verified in the Google Sheet (Column D set to ACTIVE), your access unlocks immediately.
+        
+        <div class="space-y-2 text-center">
+          <h4 class="font-black text-base text-white">Payment Screenshot Submitted Successfully!</h4>
+          <p class="text-xs text-slate-300 leading-relaxed max-w-md mx-auto">
+            Thank you! Your registration is currently pending verification from Avinash Sir. There is nothing else you need to do right now.
           </p>
-          <p class="text-[11px] font-mono text-amber-400/90 mt-2 bg-slate-950/60 p-2 rounded-lg border border-amber-500/20">
-            Submitted UTR: <strong id="payment-submitted-utr-display">-</strong>
-          </p>
+
+          <div class="bg-indigo-950/80 border border-indigo-500/30 rounded-2xl p-4 text-xs text-indigo-200 text-left space-y-2 shadow-inner mt-3">
+            <p class="font-bold text-white flex items-center gap-1.5 text-sm">
+              <span>🚀</span>
+              <span>What happens next?</span>
+            </p>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Once verified, your account will be unlocked within <strong>15–30 minutes</strong>, and your child can immediately start their 100-day learning journey!
+            </p>
+            <p class="text-[11px] text-amber-300 font-medium pt-1 border-t border-indigo-500/20">
+              💡 <strong>Tip:</strong> Simply reopen the app after 15–30 minutes, enter your registered mobile number, and tap <em>Check Approval Status Now</em>.
+            </p>
+          </div>
         </div>
 
-        <button onclick="App.checkPaymentApproval()" id="btn-check-approval" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-lg transition text-xs flex items-center justify-center gap-2">
+        <button onclick="App.checkPaymentApproval()" id="btn-check-approval" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-extrabold rounded-2xl shadow-lg transition text-xs flex items-center justify-center gap-2">
           <span>🔄</span> Check Approval Status Now
         </button>
       </div>
@@ -1178,18 +1234,18 @@
   </div>
 
   <!-- APPLICATION SCRIPTS (IN STRICT DEPENDENCY ORDER WITH CACHE-BUSTING) -->
-  <script src="js/data/badges.js?v=20261115_v2_final"></script>
-  <script src="js/data/vedicTricks.js?v=20261115_v2_final"></script>
-  <script src="js/data/holisticGrowth.js?v=20261115_v2_final"></script>
-  <script src="js/topics/funTrivia.js?v=20261115_v2_final"></script>
-  <script src="js/topics/juniorMath.js?v=20261115_v2_final"></script>
-  <script src="js/topics/seniorMath.js?v=20261115_v2_final"></script>
-  <script src="js/questionEngine.js?v=20261115_v2_final"></script>
-  <script src="js/sound.js?v=20261115_v2_final"></script>
-  <script src="js/roughPad.js?v=20261115_v2_final"></script>
-  <script src="js/sheetSync.js?v=20261115_v2_final"></script>
-  <script src="js/auth.js?v=20261115_v2_final"></script>
-  <script src="js/leaderboard.js?v=20261115_v2_final"></script>
-  <script src="js/app.js?v=20261115_v2_final"></script>
+  <script src="js/data/badges.js?v=20261115_v3_screenshot"></script>
+  <script src="js/data/vedicTricks.js?v=20261115_v3_screenshot"></script>
+  <script src="js/data/holisticGrowth.js?v=20261115_v3_screenshot"></script>
+  <script src="js/topics/funTrivia.js?v=20261115_v3_screenshot"></script>
+  <script src="js/topics/juniorMath.js?v=20261115_v3_screenshot"></script>
+  <script src="js/topics/seniorMath.js?v=20261115_v3_screenshot"></script>
+  <script src="js/questionEngine.js?v=20261115_v3_screenshot"></script>
+  <script src="js/sound.js?v=20261115_v3_screenshot"></script>
+  <script src="js/roughPad.js?v=20261115_v3_screenshot"></script>
+  <script src="js/sheetSync.js?v=20261115_v3_screenshot"></script>
+  <script src="js/auth.js?v=20261115_v3_screenshot"></script>
+  <script src="js/leaderboard.js?v=20261115_v3_screenshot"></script>
+  <script src="js/app.js?v=20261115_v3_screenshot"></script>
 </body>
 </html>

@@ -1303,10 +1303,19 @@ const App = {
   // -------------------------------------------------------------
   currentPaymentStudent: null,
   approvalPollInterval: null,
+  paymentScreenshotData: null,
 
   openPaymentModal(student, isPending = false) {
     this.currentPaymentStudent = student || Auth.getCurrentUser();
     if (!this.currentPaymentStudent) return;
+
+    this.paymentScreenshotData = null;
+    const screenshotInput = document.getElementById('payment-screenshot-input');
+    if (screenshotInput) screenshotInput.value = '';
+    const previewContainer = document.getElementById('screenshot-preview-container');
+    const placeholder = document.getElementById('screenshot-placeholder');
+    if (previewContainer) previewContainer.classList.add('hidden');
+    if (placeholder) placeholder.classList.remove('hidden');
 
     const cfg = SheetSync.getPaymentConfig();
     const cleanPhone = String(this.currentPaymentStudent.phone || '').trim().replace(/\D/g, '');
@@ -1336,14 +1345,10 @@ const App = {
     if (isPending) {
       if (submitSec) submitSec.classList.add('hidden');
       if (pendingSec) pendingSec.classList.remove('hidden');
-      const utrDisplay = document.getElementById('payment-submitted-utr-display');
-      if (utrDisplay) utrDisplay.innerText = this.currentPaymentStudent.lastUtr || 'Submitted';
       this.startApprovalPolling();
     } else {
       if (submitSec) submitSec.classList.remove('hidden');
       if (pendingSec) pendingSec.classList.add('hidden');
-      const utrInput = document.getElementById('payment-utr-input');
-      if (utrInput) utrInput.value = '';
     }
 
     const modal = document.getElementById('payment-modal');
@@ -1432,29 +1437,118 @@ const App = {
     if (!this.currentPaymentStudent) {
       alert('Student session expired. Please re-enter your mobile number.');
       this.closePaymentModal();
+  handleScreenshotSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    // Check file size (warn if > 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Selected file is too large. Please select an image under 15MB.');
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const rawDataUrl = e.target.result;
+      
+      // Compress/resize image in memory using Canvas to keep upload instant
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 1200;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+        this.paymentScreenshotData = compressedDataUrl;
+
+        // Show preview in UI
+        const previewImg = document.getElementById('screenshot-preview-img');
+        const previewContainer = document.getElementById('screenshot-preview-container');
+        const placeholder = document.getElementById('screenshot-placeholder');
+
+        if (previewImg) previewImg.src = compressedDataUrl;
+        if (previewContainer) previewContainer.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  },
+
+  removeSelectedScreenshot(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    this.paymentScreenshotData = null;
+    const input = document.getElementById('payment-screenshot-input');
+    if (input) input.value = '';
+    const previewContainer = document.getElementById('screenshot-preview-container');
+    const placeholder = document.getElementById('screenshot-placeholder');
+    if (previewContainer) previewContainer.classList.add('hidden');
+    if (placeholder) placeholder.classList.remove('hidden');
+  },
+
+  async submitPaymentScreenshot() {
+    const user = this.currentPaymentStudent || Auth.getCurrentUser();
+    if (!user) {
+      alert('Please log in with your mobile number first.');
+      this.switchView('auth');
+      return;
+    }
+
+    if (!this.paymentScreenshotData) {
+      alert('Please select or capture a screenshot of your successful payment in Step 2 before submitting!');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-payment');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Uploading Screenshot & Submitting...</span>';
+    }
+
     await SheetSync.submitPayment({
-      phone: this.currentPaymentStudent.phone,
-      studentName: this.currentPaymentStudent.name,
-      level: this.currentPaymentStudent.level,
-      utr: utrVal
+      phone: user.phone,
+      studentName: user.name,
+      level: user.level,
+      screenshotData: this.paymentScreenshotData,
+      amount: '200'
     });
 
-    this.currentPaymentStudent.accessStatus = 'PENDING_APPROVAL';
-    this.currentPaymentStudent.lastUtr = utrVal;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
 
+    // Switch to Pending Section with polished reassurance
     const submitSec = document.getElementById('payment-submit-section');
     const pendingSec = document.getElementById('payment-pending-section');
     if (submitSec) submitSec.classList.add('hidden');
     if (pendingSec) pendingSec.classList.remove('hidden');
 
-    const utrDisplay = document.getElementById('payment-submitted-utr-display');
-    if (utrDisplay) utrDisplay.innerText = utrVal;
-
     this.startApprovalPolling();
-    alert('Payment details submitted successfully! Avinash Sir has received an instant notification. We will notify you once approved.');
+    SoundEngine.playVictory();
+  },
+
+  // Fallback for legacy calls
+  async submitPaymentUtr() {
+    await this.submitPaymentScreenshot();
   },
 
   startApprovalPolling() {
@@ -1477,7 +1571,7 @@ const App = {
 
     const btn = document.getElementById('btn-check-approval');
     if (btn && !isSilent) {
-      btn.innerText = 'Connecting to Google Sheet...';
+      btn.innerText = 'Checking Verification Status...';
     }
 
     const res = await SheetSync.verifyStudent(cleanPhone);
@@ -1487,7 +1581,7 @@ const App = {
     }
 
     // STRICT APPROVAL ENFORCEMENT:
-    // Must be confirmed directly from the online Google Sheet (never local offline cache)!
+    // Must be confirmed directly from the online Google Sheet!
     if (res.student) {
       const status = String(res.student.accessStatus || '').toUpperCase().trim();
       
@@ -1509,17 +1603,16 @@ const App = {
 
         this.renderHeaderUser();
         this.switchView('home');
-        alert('🎉 Payment verified by Avinash Sir in Google Sheet! Your 100-Day Math Quiz program is fully unlocked. Welcome aboard!');
+        alert('🎉 Payment verified by Avinash Sir! Your child\'s 100-Day Math Quiz program is fully unlocked. Welcome aboard!');
         return;
       }
     }
 
     if (!isSilent) {
       if (!res.fromOnline) {
-        alert("⚠️ Could not reach your Google Sheet to verify approval. Please check your internet connection.");
+        alert("⚠️ Could not verify approval status. Please check your internet connection.");
       } else {
-        const curStatus = (res.student && res.student.accessStatus) ? res.student.accessStatus : 'PENDING_APPROVAL';
-        alert("⏳ Status: Still awaiting Avinash Sir's approval in Google Sheet.\n\nGoogle Sheet Status: " + curStatus + "\n\nAvinash Sir opens the Google Sheet (Column D) and changes your status to 'ACTIVE'. Once he does that, click here again or wait a few seconds and the quiz will unlock!");
+        alert("⏳ Verification in Progress!\n\nAvinash Sir has received your payment screenshot and is verifying it.\n\nYour account will be activated within 15–30 minutes. Please check back shortly or reopen the app!");
       }
     }
   },
@@ -1537,7 +1630,7 @@ const App = {
         const oldHtml = submitBtn ? submitBtn.innerHTML : '';
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.innerHTML = '<span>Connecting to Google Sheet...</span>';
+          submitBtn.innerHTML = '<span>Connecting...</span>';
         }
 
         const res = await Auth.login(phone);
@@ -1586,7 +1679,7 @@ const App = {
         const oldRegHtml = regBtn ? regBtn.innerHTML : '';
         if (regBtn) {
           regBtn.disabled = true;
-          regBtn.innerHTML = '<span>Saving to Google Sheet...</span>';
+          regBtn.innerHTML = '<span>Saving Profile...</span>';
         }
 
         const res = await Auth.completeRegistration(phone, name, level);

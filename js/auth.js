@@ -75,11 +75,70 @@ const Auth = {
     }
   },
 
-  async login(phone) {
-    const clean = String(phone).replace(/\D/g, '');
-    if (clean.length < 8) {
-      return { success: false, message: 'Please enter a valid mobile number.' };
+  // Validates mobile number: 8-15 digits, international support, no 5+ repeating digits (e.g. 00000)
+  validateMobile(phone) {
+    if (!phone) return { valid: false, message: 'Please enter a valid active mobile number.' };
+    const raw = String(phone).trim();
+    if (raw === '9999999999' || raw === 'admin100') {
+      return { valid: true, clean: '9999999999' };
     }
+
+    const clean = raw.replace(/\D/g, '');
+
+    // 1. Minimum 8 digits, maximum 15 digits (ITU-T international standard)
+    if (clean.length < 8 || clean.length > 15) {
+      return { valid: false, message: 'Please enter a valid active mobile number (with country code if outside India).' };
+    }
+
+    // 2. No same digit repeated 5 or more times consecutively (like 00000, 11111)
+    if (/(.)\1{4,}/.test(clean)) {
+      return { valid: false, message: 'Please enter a valid, active mobile number.' };
+    }
+
+    // 3. Reject fake repeating sequences (e.g. 00000000, 12121212)
+    const uniqueDigits = new Set(clean.split(''));
+    if (uniqueDigits.size <= 2 && clean.length >= 8) {
+      return { valid: false, message: 'Please enter a valid, active mobile number.' };
+    }
+
+    // 4. Reject pure consecutive ascending/descending sequences
+    if ('0123456789012345'.includes(clean) || '9876543210987654'.includes(clean)) {
+      return { valid: false, message: 'Please enter a valid, active mobile number.' };
+    }
+
+    return { valid: true, clean };
+  },
+
+  // Validates student full name: no digits, real name, more than 3 letters
+  validateStudentName(name) {
+    if (!name) return { valid: false, message: 'Please enter your child\'s real name.' };
+    const trimmed = String(name).trim();
+
+    // 1. Strictly no numbers allowed in student name
+    if (/\d/.test(trimmed)) {
+      return { valid: false, message: 'Student name cannot contain any numbers. Please use alphabets only.' };
+    }
+
+    // 2. Only allow letters, spaces, hyphens, and apostrophes
+    if (!/^[a-zA-Z\s.'-]+$/.test(trimmed)) {
+      return { valid: false, message: 'Please enter a proper name using alphabetic letters only.' };
+    }
+
+    // 3. Must have at least 3 alphabetic letters
+    const lettersOnly = trimmed.replace(/[^a-zA-Z]/g, '');
+    if (lettersOnly.length < 3) {
+      return { valid: false, message: 'Student full name must be at least 3-4 letters.' };
+    }
+
+    return { valid: true, name: trimmed };
+  },
+
+  async login(phone) {
+    const val = this.validateMobile(phone);
+    if (!val.valid) {
+      return { success: false, message: val.message };
+    }
+    const clean = val.clean;
 
     // Admin passcode for Avinash Sir
     if (clean === '9999999999' || phone === 'admin100') {
@@ -149,13 +208,14 @@ const Auth = {
   },
 
   async completeRegistration(phone, name, level) {
-    if (!name || name.trim().length < 2) {
-      return { success: false, message: 'Please enter a valid student name.' };
+    const nameVal = this.validateStudentName(name);
+    if (!nameVal.valid) {
+      return { success: false, message: nameVal.message };
     }
 
     const res = await SheetSync.registerStudent({
       phone: phone,
-      name: name.trim(),
+      name: nameVal.name,
       level: level
     });
 
@@ -170,12 +230,12 @@ const Auth = {
 
   async updateProfile(newName, newLevel) {
     if (!this.currentUser) return { success: false, message: 'Not logged in.' };
-    const cleanName = String(newName || '').trim();
-    const cleanLevel = String(newLevel || '').trim();
-
-    if (!cleanName || cleanName.length < 2) {
-      return { success: false, message: 'Please enter a valid student name (at least 2 letters).' };
+    const nameVal = this.validateStudentName(newName);
+    if (!nameVal.valid) {
+      return { success: false, message: nameVal.message };
     }
+    const cleanName = nameVal.name;
+    const cleanLevel = String(newLevel || '').trim();
 
     this.currentUser.name = cleanName;
     if (cleanLevel) this.currentUser.level = cleanLevel;

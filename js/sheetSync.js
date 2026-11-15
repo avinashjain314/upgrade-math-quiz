@@ -509,7 +509,7 @@ const SheetSync = {
     return { success: true };
   },
 
-  // 5. SUBMIT PAYMENT (UTR / TRANSACTION ID)
+  // 5. SUBMIT PAYMENT (SCREENSHOT / UTR)
   async submitPayment(paymentData) {
     const cleanPhone = String(paymentData.phone).trim().replace(/\D/g, '');
     const payload = {
@@ -518,13 +518,16 @@ const SheetSync = {
       studentName: paymentData.studentName || 'Student',
       level: paymentData.level || 'Junior (Grade 1-4)',
       utr: String(paymentData.utr || '').trim(),
-      amount: '200'
+      amount: '200',
+      screenshotData: paymentData.screenshotData || '',
+      screenshotFileName: paymentData.screenshotFileName || ('payment_' + cleanPhone + '.jpg')
     };
 
     const users = this.getLocalUsers();
     if (users[cleanPhone]) {
       users[cleanPhone].accessStatus = 'PENDING_APPROVAL';
-      users[cleanPhone].lastUtr = payload.utr;
+      users[cleanPhone].hasScreenshot = !!payload.screenshotData;
+      users[cleanPhone].lastPaymentDate = new Date().toISOString();
       this.saveLocalUser(users[cleanPhone]);
       if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.phone === cleanPhone) {
         Auth.currentUser.accessStatus = 'PENDING_APPROVAL';
@@ -533,21 +536,28 @@ const SheetSync = {
 
     const scriptUrl = this.getScriptUrl();
     if (scriptUrl && navigator.onLine) {
+      // 1. Send via POST with JSON body (handles Base64 images cleanly)
       try {
-        const qs = new URLSearchParams(payload).toString();
-        await fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, {
-          method: 'GET',
-          mode: 'cors'
+        await fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
         });
       } catch (e) {}
 
+      // 2. Also send lightweight GET ping for serverless instant wakeup
       try {
-        fetch(scriptUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
+        const pingPayload = {
+          action: 'payment_submitted',
+          phone: cleanPhone,
+          studentName: payload.studentName,
+          level: payload.level,
+          amount: '200',
+          utr: 'Screenshot Submitted'
+        };
+        const qs = new URLSearchParams(pingPayload).toString();
+        fetch(`${scriptUrl}?${qs}&_nocache=${Date.now()}`, { mode: 'no-cors' }).catch(() => {});
       } catch (e) {}
     }
 
